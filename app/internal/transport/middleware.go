@@ -17,6 +17,22 @@ func invalidCommandMiddleware(next telebot.HandlerFunc) telebot.HandlerFunc {
 	}
 }
 
+func authMiddleware(next telebot.HandlerFunc) telebot.HandlerFunc {
+	return func(ctx telebot.Context) error {
+		sender := ctx.Sender()
+		allowedUsers := ctx.Get("allowed_users").([]int)
+
+		for _, usr := range allowedUsers {
+			if usr > 0 {
+				if sender.ID == int64(usr) {
+					return next(ctx)
+				}
+			}
+		}
+		return ctx.Send("not allowed")
+	}
+}
+
 func isValidCommand(cmd string) bool {
 	for _, validCmd := range []string{
 		"/ping",

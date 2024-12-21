@@ -35,12 +35,12 @@ func (h *Handler) Ping(c telebot.Context) error {
 }
 
 func (h *Handler) ListStands(c telebot.Context) error {
-	// stands, err := h.service.ListStands(c)
-	// if err != nil {
-	// 	return fmt.Errorf("failed to list stands due to: %w", err)
-	// }
+	stands, err := h.service.ListStands(c)
+	if err != nil {
+		return err
 
-	return nil
+	}
+	return reply(c, stands)
 }
 
 func (h *Handler) ListFreeStands(c telebot.Context) error {
@@ -53,4 +53,14 @@ func (h *Handler) Claim(c telebot.Context) error {
 
 func (h *Handler) Release(c telebot.Context) error {
 	return nil
+}
+
+func reply(c telebot.Context, content any) error {
+	if c.Chat().Type == telebot.ChatChannel || c.Chat().Type == telebot.ChatChannelPrivate {
+		return c.Send(content, telebot.SendOptions{
+			ReplyTo:   c.Message(),
+			Protected: true,
+		})
+	}
+	return c.Send(content, telebot.SendOptions{Protected: true})
 }

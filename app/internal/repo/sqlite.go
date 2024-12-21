@@ -26,7 +26,8 @@ create table
 `
 
 type Repo struct {
-	db *sqlx.DB
+	db     *sqlx.DB
+	errors []error
 }
 
 func NewRepo(db *sqlx.DB) (*Repo, error) {
@@ -75,6 +76,10 @@ values
 	return nil
 }
 
+func (r *Repo) UserExists() {
+	
+}
+
 func (r *Repo) Stands() ([]entity.Stand, error) {
 	const q = `select
 	id,
@@ -86,7 +91,10 @@ func (r *Repo) Stands() ([]entity.Stand, error) {
 	time_released,
 	owner_group_id
 from
-	stands`
+	stands
+order by
+	name desc
+	`
 
 	var stands []entity.Stand
 	err := dbutils.NamedSelect(
@@ -97,6 +105,7 @@ from
 	)
 	if err != nil {
 		if err == sql.ErrNoRows {
+			r.errors = append(r.errors, err)
 			return nil, fmt.Errorf("no stands found")
 		}
 	}

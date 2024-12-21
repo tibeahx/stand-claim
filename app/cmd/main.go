@@ -54,6 +54,8 @@ func main() {
 	var wg sync.WaitGroup
 
 	closeCh := make(chan os.Signal, 1)
+	defer close(closeCh)
+
 	signal.Notify(closeCh, syscall.SIGINT, syscall.SIGTERM)
 
 	wg.Add(1)
@@ -77,8 +79,6 @@ func main() {
 		logger.Info("shutting down...")
 	}()
 	wg.Wait()
-
-	close(closeCh)
 }
 
 const (
