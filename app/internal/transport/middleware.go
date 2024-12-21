@@ -1,6 +1,8 @@
 package middleware
 
-import "gopkg.in/telebot.v3"
+import (
+	"gopkg.in/telebot.v3"
+)
 
 func Middleware(handler telebot.HandlerFunc) telebot.HandlerFunc {
 	return invalidCommandMiddleware(handler)

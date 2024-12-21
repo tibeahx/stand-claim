@@ -8,6 +8,7 @@ import (
 	"github.com/jmoiron/sqlx"
 	"github.com/tibeahx/claimer/app/internal/entity"
 	"github.com/tibeahx/claimer/pkg/dbutils"
+	"github.com/tibeahx/claimer/pkg/log"
 )
 
 const schemaStands = `
@@ -16,6 +17,7 @@ create table
 		id uuid primary key not null,
 		name text unique,
 		owner_id int,
+		owner_group_id int,
 		released bool,
 		owner_username text,
 		time_claimed timestamp,
@@ -33,9 +35,12 @@ func NewRepo(db *sqlx.DB) (*Repo, error) {
 	if err := r.migration(); err != nil {
 		return nil, err
 	}
+	log.Zap().Info("init table stands...")
+
 	if err := r.prefill(); err != nil {
 		return nil, err
 	}
+	log.Zap().Info("prefill table stands...")
 
 	return r, nil
 }
@@ -45,7 +50,6 @@ func (r *Repo) migration() error {
 	if err != nil {
 		return fmt.Errorf("failed to init schema: %w", err)
 	}
-
 	return nil
 }
 
@@ -79,7 +83,8 @@ func (r *Repo) Stands() ([]entity.Stand, error) {
 	released,
 	owner_username,
 	time_claimed,
-	time_released
+	time_released,
+	owner_group_id
 from
 	stands`
 

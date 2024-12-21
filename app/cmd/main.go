@@ -3,8 +3,10 @@ package main
 import (
 	"fmt"
 	"os"
+	"os/signal"
 	"path/filepath"
 	"sync"
+	"syscall"
 	"time"
 
 	"github.com/jmoiron/sqlx"
@@ -50,7 +52,9 @@ func main() {
 	}
 
 	var wg sync.WaitGroup
+
 	closeCh := make(chan os.Signal, 1)
+	signal.Notify(closeCh, syscall.SIGINT, syscall.SIGTERM)
 
 	wg.Add(1)
 	go func() {
@@ -72,8 +76,9 @@ func main() {
 		bot.Tele().Stop()
 		logger.Info("shutting down...")
 	}()
-
 	wg.Wait()
+
+	close(closeCh)
 }
 
 const (
