@@ -1,0 +1,120 @@
+package main
+
+import (
+	"fmt"
+	"os"
+	"path/filepath"
+	"sync"
+	"time"
+
+	"github.com/jmoiron/sqlx"
+	"github.com/joho/godotenv"
+	"github.com/tibeahx/claimer/app/internal/repo"
+	"github.com/tibeahx/claimer/app/internal/service"
+	telegram "github.com/tibeahx/claimer/app/internal/telegram/bot"
+	"github.com/tibeahx/claimer/app/internal/telegram/handler"
+	middleware "github.com/tibeahx/claimer/app/internal/transport"
+	"github.com/tibeahx/claimer/pkg/log"
+	"go.uber.org/zap"
+	"gopkg.in/telebot.v3"
+)
+
+const botTokenKey = "BOT_TOKEN"
+
+func main() {
+	logger := log.Zap()
+
+	db, err := initDb(logger.Desugar(), filepath.Join(".", "/app/internal/repo", "database.sqlite"))
+	if err != nil {
+		logger.Fatalf("failed to init db: %v", err)
+	}
+	defer db.Close()
+
+	if err := godotenv.Load(); err != nil {
+		logger.Fatal(err)
+	}
+
+	bot, err := telegram.NewBot(os.Getenv(botTokenKey), telegram.BotOptions{
+		Verbose: true,
+		ErrHandler: func(err error, c telebot.Context) {
+			logger.Errorf("bot error: %v", err)
+		},
+	})
+	if err != nil {
+		logger.Fatalf("failed to create bot: %v", err)
+	}
+
+	repo, err := repo.NewRepo(db)
+	if err != nil {
+		logger.Fatal(err)
+	}
+
+	var wg sync.WaitGroup
+	closeCh := make(chan os.Signal, 1)
+
+	wg.Add(1)
+	go func() {
+		defer wg.Done()
+
+		service := service.NewService(repo)
+		logger.Info("init service...")
+		handler := handler.NewHandler(bot, service)
+
+		initCommands(bot, service, handler)
+		logger.Info("init cmd handlers...")
+
+		bot.Tele().Start()
+		logger.Info("bot started...")
+	}()
+
+	go func() {
+		<-closeCh
+		bot.Tele().Stop()
+		logger.Info("shutting down...")
+	}()
+
+	wg.Wait()
+}
+
+const (
+	sqlite3        = "sqlite3"
+	pgx            = "pgx"
+	maxIdleConns   = 5
+	maxIdleTimeout = 60 * time.Second
+	maxOpenConns   = 5
+)
+
+func initDb(logger *zap.Logger, path string) (*sqlx.DB, error) {
+	if err := os.MkdirAll(filepath.Dir(path), 0755); err != nil {
+		logger.Warn("failed to create dir for db", zap.Error(err))
+	}
+
+	db, err := sqlx.Open(pgx, path)
+	if err != nil {
+		return nil, fmt.Errorf("failed to open db: %w", err)
+	}
+
+	if err := db.Ping(); err != nil {
+		return nil, err
+	}
+
+	db.SetMaxIdleConns(maxIdleConns)
+	db.SetConnMaxIdleTime(maxIdleTimeout)
+	db.SetMaxOpenConns(maxOpenConns)
+
+	return db, nil
+}
+
+func initCommands(
+	bot *telegram.Bot,
+	service *service.Service,
+	handler *handler.Handler,
+) {
+	bot.Tele().Use(middleware.Middleware)
+
+	for cmd, h := range handler.Handlers() {
+		if cmd != "" {
+			bot.Tele().Handle(cmd, h)
+		}
+	}
+}
