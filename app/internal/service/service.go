@@ -21,7 +21,6 @@ func (s *Service) Ping(c telebot.Context, owner entity.Owner) error {
 }
 
 func (s *Service) ListStands(c telebot.Context) ([]entity.Stand, error) {
-	users := s.repo.
 	return s.repo.Stands()
 }
 
@@ -37,5 +36,3 @@ func (s *Service) Release(c telebot.Context, stand entity.Stand) (string, error)
 
 	return s.repo.ReleaseStand(stand)
 }
-
-// func requireUser(userID int64, )

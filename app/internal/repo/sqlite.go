@@ -21,13 +21,12 @@ create table
 		released bool,
 		owner_username text,
 		time_claimed timestamp,
-		time_released timestamp,
+		time_released timestamp
 	);
 `
 
 type Repo struct {
-	db     *sqlx.DB
-	errors []error
+	db *sqlx.DB
 }
 
 func NewRepo(db *sqlx.DB) (*Repo, error) {
@@ -77,7 +76,7 @@ values
 }
 
 func (r *Repo) UserExists() {
-	
+
 }
 
 func (r *Repo) Stands() ([]entity.Stand, error) {
@@ -105,7 +104,6 @@ order by
 	)
 	if err != nil {
 		if err == sql.ErrNoRows {
-			r.errors = append(r.errors, err)
 			return nil, fmt.Errorf("no stands found")
 		}
 	}

@@ -11,6 +11,7 @@ import (
 
 	"github.com/jmoiron/sqlx"
 	"github.com/joho/godotenv"
+	_ "github.com/mattn/go-sqlite3"
 	"github.com/tibeahx/claimer/app/internal/repo"
 	"github.com/tibeahx/claimer/app/internal/service"
 	telegram "github.com/tibeahx/claimer/app/internal/telegram/bot"
@@ -26,7 +27,7 @@ const botTokenKey = "BOT_TOKEN"
 func main() {
 	logger := log.Zap()
 
-	db, err := initDb(logger.Desugar(), filepath.Join(".", "/app/internal/repo", "database.sqlite"))
+	db, err := initDb(logger.Desugar(), filepath.Join(".", "/app/internal/repo", "conn.db"))
 	if err != nil {
 		logger.Fatalf("failed to init db: %v", err)
 	}
@@ -51,6 +52,20 @@ func main() {
 		logger.Fatal(err)
 	}
 
+	service := service.NewService(repo)
+
+	logger.Info("init service...")
+
+	handler := handler.NewHandler(bot, service)
+
+	initCommands(bot, handler)
+
+	logger.Info("init cmd handlers...")
+
+	bot.Tele().Start()
+
+	logger.Info("bot started...")
+
 	var wg sync.WaitGroup
 
 	closeCh := make(chan os.Signal, 1)
@@ -62,18 +77,6 @@ func main() {
 	go func() {
 		defer wg.Done()
 
-		service := service.NewService(repo)
-		logger.Info("init service...")
-		handler := handler.NewHandler(bot, service)
-
-		initCommands(bot, service, handler)
-		logger.Info("init cmd handlers...")
-
-		bot.Tele().Start()
-		logger.Info("bot started...")
-	}()
-
-	go func() {
 		<-closeCh
 		bot.Tele().Stop()
 		logger.Info("shutting down...")
@@ -83,7 +86,6 @@ func main() {
 
 const (
 	sqlite3        = "sqlite3"
-	pgx            = "pgx"
 	maxIdleConns   = 5
 	maxIdleTimeout = 60 * time.Second
 	maxOpenConns   = 5
@@ -94,7 +96,7 @@ func initDb(logger *zap.Logger, path string) (*sqlx.DB, error) {
 		logger.Warn("failed to create dir for db", zap.Error(err))
 	}
 
-	db, err := sqlx.Open(pgx, path)
+	db, err := sqlx.Open(sqlite3, path)
 	if err != nil {
 		return nil, fmt.Errorf("failed to open db: %w", err)
 	}
@@ -110,11 +112,7 @@ func initDb(logger *zap.Logger, path string) (*sqlx.DB, error) {
 	return db, nil
 }
 
-func initCommands(
-	bot *telegram.Bot,
-	service *service.Service,
-	handler *handler.Handler,
-) {
+func initCommands(bot *telegram.Bot, handler *handler.Handler) {
 	bot.Tele().Use(middleware.Middleware)
 
 	for cmd, h := range handler.Handlers() {
