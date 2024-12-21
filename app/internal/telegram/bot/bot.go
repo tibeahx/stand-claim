@@ -3,19 +3,19 @@ package telegram
 import (
 	"fmt"
 
+	middleware "github.com/tibeahx/claimer/app/internal/transport"
 	"github.com/tibeahx/claimer/pkg/opts"
 	"gopkg.in/telebot.v4"
 )
 
 type BotOptions struct {
-	ErrHandler func(error, telebot.Context)
 	Verbose    bool
 	GroupID    int64
 }
 
 type Bot struct {
 	tele       *telebot.Bot
-	errHandler func(error, telebot.Context)
+	middleware telebot.MiddlewareFunc
 }
 
 func NewBot(token string, opts BotOptions) (*Bot, error) {
@@ -27,11 +27,18 @@ func NewBot(token string, opts BotOptions) (*Bot, error) {
 		return nil, fmt.Errorf("failed to build bot: %w", err)
 	}
 
-	return &Bot{tele: b}, nil
+	bot := &Bot{
+		tele:       b,
+		middleware: middleware.Middleware,
+	}
+
+	b.Use(bot.middleware)
+
+	return bot, nil
 }
 
-func (b *Bot) ErrHandler() func(error, telebot.Context) {
-	return b.errHandler
+func (b *Bot) Middleware() telebot.MiddlewareFunc {
+	return b.middleware
 }
 
 func (b *Bot) Tele() *telebot.Bot {

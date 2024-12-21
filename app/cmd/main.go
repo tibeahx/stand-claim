@@ -16,10 +16,8 @@ import (
 	"github.com/tibeahx/claimer/app/internal/service"
 	telegram "github.com/tibeahx/claimer/app/internal/telegram/bot"
 	"github.com/tibeahx/claimer/app/internal/telegram/handler"
-	middleware "github.com/tibeahx/claimer/app/internal/transport"
 	"github.com/tibeahx/claimer/pkg/log"
 	"go.uber.org/zap"
-	"gopkg.in/telebot.v4"
 )
 
 const botTokenKey = "BOT_TOKEN"
@@ -37,16 +35,10 @@ func main() {
 		logger.Fatal(err)
 	}
 
-	bot, err := telegram.NewBot(os.Getenv(botTokenKey), telegram.BotOptions{
-		Verbose: true,
-		ErrHandler: func(err error, c telebot.Context) {
-			logger.Errorf("bot error: %v", err)
-		},
-	})
+	bot, err := telegram.NewBot(os.Getenv(botTokenKey), telegram.BotOptions{Verbose: true})
 	if err != nil {
 		logger.Fatalf("failed to create bot: %v", err)
 	}
-	bot.SetCommands()
 
 	repo, err := repo.NewRepo(db)
 	if err != nil {
@@ -114,8 +106,6 @@ func initDb(logger *zap.Logger, path string) (*sqlx.DB, error) {
 }
 
 func initCommands(bot *telegram.Bot, handler *handler.Handler) {
-	bot.Tele().Use(middleware.Middleware)
-
 	for cmd, h := range handler.Handlers() {
 		if cmd != "" {
 			bot.Tele().Handle(cmd, h)

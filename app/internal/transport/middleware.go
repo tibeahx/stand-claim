@@ -1,19 +1,30 @@
 package middleware
 
 import (
+	"strings"
+
 	"gopkg.in/telebot.v4"
 )
 
 func Middleware(handler telebot.HandlerFunc) telebot.HandlerFunc {
-	return invalidCommandMiddleware(handler)
+	return validateCmdMiddleware(authMiddleware(handler))
 }
 
-func invalidCommandMiddleware(next telebot.HandlerFunc) telebot.HandlerFunc {
+func validateCmdMiddleware(next telebot.HandlerFunc) telebot.HandlerFunc {
 	return func(c telebot.Context) error {
-		if !isValidCommand(c.Text()) {
-			return c.Send("unknown command, see `/commands` for available commands")
+		if strings.HasPrefix(c.Text(), "/") {
+			if !isValidCommand(c.Text()) {
+				return c.Send("unknown command, see `/commands` for available commands")
+			}
 		}
 		return next(c)
+	}
+}
+
+func replyCommandMiddleware(next telebot.HandlerFunc) telebot.HandlerFunc {
+	return func(c telebot.Context) error {
+		if c.Bot().Respond()
+		return c.Send(c.Bot().Commands())
 	}
 }
 
