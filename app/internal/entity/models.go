@@ -4,7 +4,7 @@ import (
 	"time"
 
 	"github.com/google/uuid"
-	"gopkg.in/telebot.v3"
+	"gopkg.in/telebot.v4"
 )
 
 type Owner struct {
@@ -13,12 +13,34 @@ type Owner struct {
 	GroupID  int64  `db:"owner_group_id"`
 }
 
-func OwnerFromContext(c telebot.Context) Owner {
-	return Owner{
-		ID:       c.Sender().ID,
-		Username: c.Sender().Username,
-		GroupID:  c.Message().Chat.ID,
+type SenderInfo struct {
+	ID              int64
+	Username        string
+	GroupID         int64
+	IsGroup         bool
+	IsBot           bool
+	IsInlineMode    bool
+	IsFirstInstance bool
+}
+
+func SenderInfoFromContext(c telebot.Context) SenderInfo {
+	chat := c.Chat()
+	sender := c.Sender()
+
+	info := SenderInfo{
+		ID:           sender.ID,
+		Username:     sender.Username,
+		GroupID:      chat.ID,
+		IsGroup:      chat.Type == telebot.ChatGroup || chat.Type == telebot.ChatSuperGroup,
+		IsBot:        sender.IsBot,
+		IsInlineMode: c.Message().Via != nil,
 	}
+
+	if info.IsGroup {
+		info.IsFirstInstance = chat.ID == sender.ID
+	}
+
+	return info
 }
 
 type Stand struct {

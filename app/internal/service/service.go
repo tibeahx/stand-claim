@@ -3,7 +3,7 @@ package service
 import (
 	"github.com/tibeahx/claimer/app/internal/entity"
 	"github.com/tibeahx/claimer/app/internal/repo"
-	"gopkg.in/telebot.v3"
+	"gopkg.in/telebot.v4"
 )
 
 type Service struct {

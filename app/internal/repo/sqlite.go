@@ -9,9 +9,11 @@ import (
 	"github.com/tibeahx/claimer/app/internal/entity"
 	"github.com/tibeahx/claimer/pkg/dbutils"
 	"github.com/tibeahx/claimer/pkg/log"
+	"github.com/tibeahx/claimer/pkg/opts"
 )
 
 const schemaStands = `
+drop table if exists stands;
 create table
 	if not exists stands (
 		id uuid primary key not null,
@@ -53,22 +55,21 @@ func (r *Repo) migration() error {
 	return nil
 }
 
-var defaultStands = []string{"dev1", "dev2", "dev3", "dev4"}
-
-func (r *Repo) prefill() error {
+func (r *Repo) prefill(opts ...opts.Options) error {
 	const q = `insert into
 	stands (id, name)
 values
-	(:id, :name);
-	`
+	(:id, :name) on CONFLICT (name) DO NOTHING;`
 
-	for _, stand := range defaultStands {
-		_, err := r.db.NamedExec(q, map[string]any{
-			"name": stand,
-			"id":   uuid.New().String(),
-		})
-		if err != nil {
-			return fmt.Errorf("failed to exec prefill due to: %w", err)
+	for _, opt := range opts {
+		for _, stand := range opt.Stands() {
+			err := dbutils.NamedExec(r.db, q, map[string]any{
+				"name": stand,
+				"id":   uuid.New().String(),
+			})
+			if err != nil {
+				return fmt.Errorf("failed to exec prefill: %w", err)
+			}
 		}
 	}
 

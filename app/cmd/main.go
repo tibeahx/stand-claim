@@ -19,7 +19,7 @@ import (
 	middleware "github.com/tibeahx/claimer/app/internal/transport"
 	"github.com/tibeahx/claimer/pkg/log"
 	"go.uber.org/zap"
-	"gopkg.in/telebot.v3"
+	"gopkg.in/telebot.v4"
 )
 
 const botTokenKey = "BOT_TOKEN"
@@ -46,6 +46,7 @@ func main() {
 	if err != nil {
 		logger.Fatalf("failed to create bot: %v", err)
 	}
+	bot.SetCommands()
 
 	repo, err := repo.NewRepo(db)
 	if err != nil {

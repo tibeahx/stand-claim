@@ -3,7 +3,8 @@ package telegram
 import (
 	"fmt"
 
-	"gopkg.in/telebot.v3"
+	"github.com/tibeahx/claimer/pkg/opts"
+	"gopkg.in/telebot.v4"
 )
 
 type BotOptions struct {
@@ -25,6 +26,7 @@ func NewBot(token string, opts BotOptions) (*Bot, error) {
 	if err != nil {
 		return nil, fmt.Errorf("failed to build bot: %w", err)
 	}
+
 	return &Bot{tele: b}, nil
 }
 
@@ -34,4 +36,8 @@ func (b *Bot) ErrHandler() func(error, telebot.Context) {
 
 func (b *Bot) Tele() *telebot.Bot {
 	return b.tele
+}
+
+func (b *Bot) SetCommands(opts ...opts.Options) error {
+	return b.tele.SetCommands(opts)
 }

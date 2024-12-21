@@ -3,7 +3,7 @@ package handler
 import (
 	"github.com/tibeahx/claimer/app/internal/service"
 	telegram "github.com/tibeahx/claimer/app/internal/telegram/bot"
-	"gopkg.in/telebot.v3"
+	"gopkg.in/telebot.v4"
 )
 
 type Handler struct {
@@ -30,7 +30,7 @@ func (h *Handler) Handlers() map[string]telebot.HandlerFunc {
 
 func (h *Handler) Ping(c telebot.Context) error {
 	// owner := entity.OwnerFromContext(c)
-
+	// c.Chat().
 	return nil
 }
 

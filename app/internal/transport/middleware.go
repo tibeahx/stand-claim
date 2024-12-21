@@ -1,7 +1,7 @@
 package middleware
 
 import (
-	"gopkg.in/telebot.v3"
+	"gopkg.in/telebot.v4"
 )
 
 func Middleware(handler telebot.HandlerFunc) telebot.HandlerFunc {
