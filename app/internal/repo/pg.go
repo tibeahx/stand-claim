@@ -52,12 +52,44 @@ order by
 	return stands, nil
 }
 
+// func (r *Repo) StandsByOwner(owner entity.Owner) ([]entity.Stand, error) {
+// 	const q = `select
+// 	id,
+// 	name,
+// 	released,
+// 	owner_id,
+// 	owner_username,
+// 	time_claimed,
+// 	time_released
+// from
+// 	stands
+// where
+// 	owner_id = :owner_id,
+// 	`
+// }
+
 func (r *Repo) FreeStands() ([]entity.Stand, error) {
 	return nil, nil
 }
 
-func (r *Repo) ClaimStand(stand entity.Stand) error {
-	return nil
+func (r *Repo) ClaimStand(standName string, owner entity.Owner) error {
+	const q = `insert into
+	stands (owner_id, owner_username, time_claimed)
+values
+	(:owner_id, :owner_username, :now ())
+where
+	name = :name;
+	`
+
+	return dbutils.NamedExec(
+		r.db,
+		q,
+		map[string]any{
+			"owner_id":       owner.ID,
+			"owner_username": owner.Username,
+			"name":           standName,
+		},
+	)
 }
 
 func (r *Repo) ReleaseStand(stand entity.Stand) (string, error) {

@@ -4,11 +4,19 @@ import (
 	"time"
 
 	"github.com/google/uuid"
+	"gopkg.in/telebot.v4"
 )
 
 type Owner struct {
 	ID       int64  `db:"owner_id"`
 	Username string `db:"owner_username"`
+}
+
+func NewOwner(c telebot.Context) Owner {
+	return Owner{
+		ID:       c.Message().Sender.ID,
+		Username: c.Message().Sender.Username,
+	}
 }
 
 type Stand struct {
