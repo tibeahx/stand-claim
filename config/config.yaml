@@ -10,7 +10,11 @@ postgres:
   max_open_conns: 30
   use_seed: true
 bot:
-  commands: [list, list_free, status, claim, release, ping]
+  commands:
+    list: "List all stands"
+    claim: "Claim a stand"
+    release: "Release a stand"
+    ping: "Ping current stand owner by username"
   token: tokenFromENV
   stands: [dev, dev4, staging]
   verbose: true

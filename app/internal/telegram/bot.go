@@ -17,7 +17,15 @@ func NewBot(cfg *config.Config) (*Bot, error) {
 	b, err := telebot.NewBot(telebot.Settings{
 		Verbose: cfg.Bot.Verbose,
 		Token:   cfg.Bot.Token,
-		Poller:  &telebot.LongPoller{Timeout: 10 * time.Second},
+		Poller: &telebot.LongPoller{
+			Timeout: 10 * time.Second,
+			AllowedUpdates: []string{
+				"message",
+				"edited_message",
+				"inline_query",
+				"callback_query",
+			},
+		},
 	})
 	if err != nil {
 		return nil, fmt.Errorf("failed to build bot: %w", err)

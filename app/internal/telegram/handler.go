@@ -3,20 +3,18 @@ package telegram
 import (
 	"fmt"
 
-	"github.com/tibeahx/claimer/app/internal/config"
 	"github.com/tibeahx/claimer/app/internal/repo"
+	"github.com/tibeahx/claimer/pkg/utils"
 
 	"gopkg.in/telebot.v4"
 )
 
 type Handler struct {
-	bot  *Bot
 	repo *repo.Repo
 }
 
 func NewHandler(b *Bot, repo *repo.Repo) *Handler {
 	return &Handler{
-		bot:  b,
 		repo: repo,
 	}
 }
@@ -28,16 +26,33 @@ func (h *Handler) Ping(c telebot.Context) error {
 }
 
 func (h *Handler) ListStands(c telebot.Context) error {
-	stands, err := h.repo.Stands(c)
+	stands, err := h.repo.Stands()
 	if err != nil {
 		return err
-
 	}
-	return c.Send(stands)
-}
 
-func (h *Handler) ListFreeStands(c telebot.Context) error {
-	return nil
+	if len(stands) == 0 {
+		return c.Send("No environments found")
+	}
+
+	var response string
+
+	for _, stand := range stands {
+		if stand.OwnerUsername == "" {
+			continue
+		}
+
+		status := utils.FormatStandStatus(stand)
+
+		response += fmt.Sprintf(
+			"%s %s %s\n",
+			utils.Computer,
+			stand.Name,
+			status,
+		)
+	}
+
+	return c.Reply(response)
 }
 
 func (h *Handler) Claim(c telebot.Context) error {
@@ -48,35 +63,19 @@ func (h *Handler) Release(c telebot.Context) error {
 	return nil
 }
 
-func (h *Handler) Status(c telebot.Context) error {
-	return nil
-}
-
 func (h *Handler) Greetings(c telebot.Context) error {
 	greeting := fmt.Sprintf(
-		"Hello %s, I'm a StandClaimer bot, I will help you to track testing stands for deployments accross the team. You may refer my by query @StandClaimBot",
+		"Hello %s, I'm a StandClaimer bot, I will help you to manage enviroments accross the team. Tap `/` on the group menu to see commands",
 		c.Sender().Username,
 	)
 	return c.Send(greeting)
 }
 
-func (h *Handler) Handlers(cfg *config.Config) map[string]telebot.HandlerFunc {
-	funcMap := make(map[string]telebot.HandlerFunc)
-
-	handlers := []telebot.HandlerFunc{
-		h.Ping,
-		h.ListStands,
-		h.ListFreeStands,
-		h.Claim,
-		h.Release,
-		h.Status,
+func (h *Handler) Handlers() map[string]telebot.HandlerFunc {
+	return map[string]telebot.HandlerFunc{
+		"/list":    h.ListStands,
+		"/claim":   h.Claim,
+		"/release": h.Release,
+		"/ping":    h.Ping,
 	}
-
-	for i, cmd := range config.Commands {
-		if _, ok := funcMap[cmd.Text]; !ok {
-			funcMap[cmd.Text] = handlers[i]
-		}
-	}
-
-	return funcMap
 }

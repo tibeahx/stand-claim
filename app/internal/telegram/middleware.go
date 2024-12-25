@@ -14,16 +14,20 @@ func Middleware(handler telebot.HandlerFunc) telebot.HandlerFunc {
 func validateCmdMiddleware(next telebot.HandlerFunc) telebot.HandlerFunc {
 	return func(c telebot.Context) error {
 		if strings.HasPrefix(c.Text(), "/") {
-			if !isValidCommand(c.Text()) {
+			cmdText := strings.Split(c.Text(), "@")[0]
+			cmdText = strings.TrimPrefix(cmdText, "/")
+
+			if !isValidCommand(cmdText) {
 				return c.Send("unknown command, see `/` for available commands")
 			}
 		}
+
 		return next(c)
 	}
 }
 
 func isValidCommand(cmd string) bool {
-	for _, command := range config.Commands {
+	for _, command := range config.TeleCommands {
 		if command.Text != cmd {
 			return false
 		}

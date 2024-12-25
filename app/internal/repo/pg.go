@@ -5,9 +5,8 @@ import (
 	"fmt"
 
 	"github.com/jmoiron/sqlx"
-	"github.com/tibeahx/claimer/app/internal/entity"
 	"github.com/tibeahx/claimer/pkg/dbutils"
-	"gopkg.in/telebot.v4"
+	"github.com/tibeahx/claimer/pkg/entity"
 )
 
 type Repo struct {
@@ -20,29 +19,35 @@ func NewRepo(db *sqlx.DB) *Repo {
 	}
 }
 
-func (r *Repo) Stands(c telebot.Context) ([]string, error) {
-	const q = `select
-	name
-from
-	stands
-order by
-	name desc
+func (r *Repo) Stands() ([]entity.Stand, error) {
+	const q = `
+	SELECT 
+		id,
+		name,
+		released,
+		owner_id,
+		owner_username,
+		time_claimed,
+		time_released
+	FROM stands
+	ORDER BY name ASC
 	`
 
-	var names []string
+	var stands []entity.Stand
 	err := dbutils.NamedSelect(
 		r.db,
 		q,
-		&names,
+		&stands,
 		nil,
 	)
 	if err != nil {
 		if err == sql.ErrNoRows {
 			return nil, fmt.Errorf("no stands found")
 		}
+		return nil, fmt.Errorf("failed to get stands: %w", err)
 	}
 
-	return names, nil
+	return stands, nil
 }
 
 func (r *Repo) FreeStands() ([]entity.Stand, error) {

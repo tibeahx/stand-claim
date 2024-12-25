@@ -44,8 +44,9 @@ func main() {
 	}
 
 	repo := repo.NewRepo(db)
-
-	logger.Info("init service...")
+	if err != nil {
+		logger.Fatal(err)
+	}
 
 	handler := telegram.NewHandler(bot, repo)
 
@@ -122,9 +123,11 @@ func initCommands(
 	cfg *config.Config,
 	handler *telegram.Handler,
 ) {
-	bot.Tele().Handle(telebot.OnUserJoined, handler.Greetings)
 
-	for command, h := range handler.Handlers(cfg) {
+	bot.Tele().Handle(telebot.OnUserJoined, handler.Greetings)
+	bot.Tele().SetCommands(config.TeleCommands)
+
+	for command, h := range handler.Handlers() {
 		bot.Tele().Handle(command, h)
 	}
 }

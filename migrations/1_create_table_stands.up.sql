@@ -5,5 +5,4 @@ create table if not exists stands (
 		released bool,
 		owner_username text,
 		time_claimed timestamp,
-		time_released timestamp
     );

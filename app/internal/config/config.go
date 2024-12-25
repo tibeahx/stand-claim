@@ -9,9 +9,13 @@ import (
 	"gopkg.in/yaml.v3"
 )
 
+var config *Config
+
+const botTokenKey = "BOT_TOKEN"
+
 type Config struct {
-	Postgres PostgresConfig
-	Bot      BotConfig
+	Postgres PostgresConfig `yaml:"postgres"`
+	Bot      BotConfig      `yaml:"bot"`
 }
 
 type PostgresConfig struct {
@@ -22,22 +26,21 @@ type PostgresConfig struct {
 		Password string `yaml:"password"`
 		SslMode  string `yaml:"sslmode"`
 		DbName   string `yaml:"db_name"`
-	}
+	} `yaml:"dsn"`
 	MaxIdleConns int  `yaml:"max_idle_conns"`
 	MaxOpenConns int  `yaml:"max_open_conns"`
 	UseSeed      bool `yaml:"use_seed"`
 }
 
-var Commands []telebot.Command
+var TeleCommands []telebot.Command
 
 type BotConfig struct {
-	wrappedCommands []commandWrapper `yaml:"commands"`
-	Stands          []string         `yaml:"stands"`
-	Token           string           `yaml:"bot_token"`
-	Verbose         bool             `yaml:"verbose"`
+	RawCommands map[string]string `yaml:"commands"`
+	Stands      []string          `yaml:"stands"`
+	Token       string            `yaml:"bot_token"`
+	Verbose     bool              `yaml:"verbose"`
 }
 
-// used when config.yaml has no stands property
 var defaultStands = []string{
 	"dev1",
 	"dev2",
@@ -45,35 +48,30 @@ var defaultStands = []string{
 	"dev4",
 }
 
-type commandWrapper struct {
-	Text        string `yaml:"command"`
-	Description string `yaml:"description"`
-}
-
-func toTeleCommand(in []commandWrapper) []telebot.Command {
-	teleCommands := make([]telebot.Command, len(in))
-	for i, cmd := range in {
-		teleCommands[i] = telebot.Command{
-			Text:        cmd.Text,
-			Description: cmd.Description,
-		}
-	}
-	return teleCommands
-}
-
-// used when config.yaml has no commands property
 var defaultCommands = []telebot.Command{
 	{Text: "claim", Description: "Claim a stand"},
 	{Text: "release", Description: "Release currently claimed stand"},
-	{Text: "status", Description: "Show current stand status"},
 	{Text: "list", Description: "Show all stands"},
-	{Text: "list_free", Description: "Show available stands"},
-	{Text: "ping", Description: "Ping current stand owner"},
+	{Text: "ping", Description: "Ping current stand owner by username"},
 }
 
-var config *Config
+func (c *Config) teleCommandFromRaw() []telebot.Command {
+	result := make([]telebot.Command, 0)
 
-const botTokenKey = "BOT_TOKEN"
+	if len(c.Bot.RawCommands) > 0 {
+		for cmd, desc := range c.Bot.RawCommands {
+			TeleCommands = append(TeleCommands, telebot.Command{
+				Text:        cmd,
+				Description: desc,
+			})
+		}
+		return result
+	} else {
+		TeleCommands = defaultCommands
+	}
+
+	return nil
+}
 
 func Load(cfgPath string) error {
 	var cfg *Config
@@ -87,32 +85,19 @@ func Load(cfgPath string) error {
 		return fmt.Errorf("failed to parse fileBytes due to %w", err)
 	}
 
+	cfg.teleCommandFromRaw()
+
 	if err := godotenv.Load(); err != nil {
 		return fmt.Errorf("failed to load env due to %w", err)
 	}
 
 	cfg.Bot.Token = os.Getenv(botTokenKey)
-	err = os.Setenv(botTokenKey, cfg.Bot.Token)
-	if err != nil {
-		return err
+	if cfg.Bot.Token == "" {
+		return fmt.Errorf("bot token is empty")
 	}
 
-	if cfg.Bot.wrappedCommands == nil {
-		for _, cmd := range defaultCommands {
-			if cmd.Text == "" {
-				continue
-			}
-		}
-		Commands = toTeleCommand(cfg.Bot.wrappedCommands)
-	}
-
-	if cfg.Bot.Stands == nil {
-		for _, stand := range defaultStands {
-			if stand == "" {
-				continue
-			}
-			cfg.Bot.Stands = append(cfg.Bot.Stands, stand)
-		}
+	if len(cfg.Bot.Stands) == 0 {
+		cfg.Bot.Stands = defaultStands
 	}
 
 	config = cfg

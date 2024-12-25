@@ -16,7 +16,7 @@
 
 - id: "123e4567-e89b-12d3-a456-426614174003"
   name: "dev3"
-  released: false
+  released: true
   owner_id: 1
   owner_username: "mapstringstruct"
   time_claimed: "2024-01-01T00:00:00Z"
@@ -24,7 +24,7 @@
 
 - id: "123e4567-e89b-12d3-a456-426614174004"
   name: "dev4"
-  released: false
+  released: true
   owner_id: 1
   owner_username: "mapstringstruct"
   time_claimed: "2024-01-01T00:00:00Z"
