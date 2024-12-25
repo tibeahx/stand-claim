@@ -1,0 +1,16 @@
+postgres:
+  dsn:
+    host: db
+    port: 5432
+    user: postgres
+    password: postgres
+    db_name: stands
+    sslmode: disable
+  max_idle_conns: 10
+  max_open_conns: 30
+  use_seed: true
+bot:
+  commands: [list, list_free, status, claim, release, ping]
+  token: tokenFromENV
+  stands: [dev, dev4, staging]
+  verbose: true

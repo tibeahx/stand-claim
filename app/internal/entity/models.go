@@ -13,15 +13,15 @@ type Owner struct {
 	GroupID  int64  `db:"owner_group_id"`
 }
 
-type SenderInfo struct {
+type UserInfo struct {
 	ID       int64
 	Username string
 	GroupID  int64
 	IsGroup  bool
 }
 
-func SenderInfoFromContext(c telebot.Context) SenderInfo {
-	info := SenderInfo{
+func UserInfoFromContext(c telebot.Context) *UserInfo {
+	info := UserInfo{
 		ID:       c.Sender().ID,
 		Username: c.Sender().Username,
 		GroupID:  c.Chat().ID,
@@ -32,7 +32,7 @@ func SenderInfoFromContext(c telebot.Context) SenderInfo {
 		c.Chat().ID = c.Sender().ID
 	}
 
-	return info
+	return &info
 }
 
 type Stand struct {

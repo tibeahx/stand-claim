@@ -1,0 +1,38 @@
+version: '3.8'
+
+services:
+  app:
+    build: .
+    depends_on:
+      - db
+      - migrate
+    volumes:
+      - ./config:/app/config
+
+  db:
+    image: postgres:15-alpine
+    container_name: stand_claim_db
+    environment:
+      - POSTGRES_USER=postgres
+      - POSTGRES_PASSWORD=postgres
+      - POSTGRES_DB=stands
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    ports:
+      - "5435:5432"
+
+  migrate:
+    image: migrate/migrate
+    entrypoint: [
+      "sh", "-c", 
+      "migrate -verbose -source file://migrations -database postgres://postgres:postgres@db:5432/stands?sslmode=disable up"
+    ]
+    depends_on:
+      db:
+        condition: service_healthy
+      
+    volumes:
+      - ./migrations:/migrations

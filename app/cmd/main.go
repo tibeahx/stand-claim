@@ -4,28 +4,31 @@ import (
 	"fmt"
 	"os"
 	"os/signal"
-	"path/filepath"
 	"sync"
 	"syscall"
-	"time"
 
+	"github.com/go-testfixtures/testfixtures/v3"
+	_ "github.com/jackc/pgx/v5/stdlib"
 	"github.com/jmoiron/sqlx"
 	"github.com/joho/godotenv"
-	_ "github.com/mattn/go-sqlite3"
+	"github.com/tibeahx/claimer/app/internal/config"
 	"github.com/tibeahx/claimer/app/internal/repo"
-	"github.com/tibeahx/claimer/app/internal/service"
-	telegram "github.com/tibeahx/claimer/app/internal/telegram/bot"
-	"github.com/tibeahx/claimer/app/internal/telegram/handler"
+	"github.com/tibeahx/claimer/app/internal/telegram"
 	"github.com/tibeahx/claimer/pkg/log"
-	"go.uber.org/zap"
+	"gopkg.in/telebot.v4"
 )
-
-const botTokenKey = "BOT_TOKEN"
 
 func main() {
 	logger := log.Zap()
 
-	db, err := initDb(logger.Desugar(), filepath.Join(".", "/app/internal/repo", "conn.db"))
+	cfg, err := config.Get()
+	if err != nil {
+		logger.Fatal(err)
+	}
+
+	logger.Infof("%v", cfg)
+
+	db, err := initDb(cfg)
 	if err != nil {
 		logger.Fatalf("failed to init db: %v", err)
 	}
@@ -35,23 +38,18 @@ func main() {
 		logger.Fatal(err)
 	}
 
-	bot, err := telegram.NewBot(os.Getenv(botTokenKey), telegram.BotOptions{Verbose: true})
+	bot, err := telegram.NewBot(cfg)
 	if err != nil {
 		logger.Fatalf("failed to create bot: %v", err)
 	}
 
-	repo, err := repo.NewRepo(db)
-	if err != nil {
-		logger.Fatal(err)
-	}
-
-	service := service.NewService(repo)
+	repo := repo.NewRepo(db)
 
 	logger.Info("init service...")
 
-	handler := handler.NewHandler(bot, service)
+	handler := telegram.NewHandler(bot, repo)
 
-	initCommands(bot, handler)
+	initCommands(bot, cfg, handler)
 
 	logger.Info("init cmd handlers...")
 
@@ -77,38 +75,56 @@ func main() {
 	wg.Wait()
 }
 
-const (
-	sqlite3        = "sqlite3"
-	maxIdleConns   = 5
-	maxIdleTimeout = 60 * time.Second
-	maxOpenConns   = 5
-)
-
-func initDb(logger *zap.Logger, path string) (*sqlx.DB, error) {
-	if err := os.MkdirAll(filepath.Dir(path), 0755); err != nil {
-		logger.Warn("failed to create dir for db", zap.Error(err))
-	}
-
-	db, err := sqlx.Open(sqlite3, path)
+func initDb(cfg *config.Config) (*sqlx.DB, error) {
+	dsn := fmt.Sprintf(
+		"host=%s port=%d user=%s password=%s dbname=%s sslmode=%s",
+		cfg.Postgres.DSN.Host,
+		cfg.Postgres.DSN.Port,
+		cfg.Postgres.DSN.User,
+		cfg.Postgres.DSN.Password,
+		cfg.Postgres.DSN.DbName,
+		cfg.Postgres.DSN.SslMode,
+	)
+	db, err := sqlx.Open("pgx", dsn)
 	if err != nil {
 		return nil, fmt.Errorf("failed to open db: %w", err)
 	}
 
-	if err := db.Ping(); err != nil {
-		return nil, err
+	if cfg.Postgres.UseSeed {
+		fixtures, err := testfixtures.New(
+			testfixtures.Database(db.DB),
+			testfixtures.Dialect("postgres"),
+			testfixtures.Directory("fixtures"),
+			testfixtures.DangerousSkipTestDatabaseCheck(),
+		)
+		if err != nil {
+			return nil, err
+		}
+
+		err = fixtures.Load()
+		if err != nil {
+			return nil, err
+		}
 	}
 
-	db.SetMaxIdleConns(maxIdleConns)
-	db.SetConnMaxIdleTime(maxIdleTimeout)
-	db.SetMaxOpenConns(maxOpenConns)
+	if err := db.Ping(); err != nil {
+		return nil, fmt.Errorf("failed to ping db: %w", err)
+	}
+
+	db.SetMaxIdleConns(cfg.Postgres.MaxIdleConns)
+	db.SetMaxOpenConns(cfg.Postgres.MaxOpenConns)
 
 	return db, nil
 }
 
-func initCommands(bot *telegram.Bot, handler *handler.Handler) {
-	for cmd, h := range handler.Handlers() {
-		if cmd != "" {
-			bot.Tele().Handle(cmd, h)
-		}
+func initCommands(
+	bot *telegram.Bot,
+	cfg *config.Config,
+	handler *telegram.Handler,
+) {
+	bot.Tele().Handle(telebot.OnUserJoined, handler.Greetings)
+
+	for command, h := range handler.Handlers(cfg) {
+		bot.Tele().Handle(command, h)
 	}
 }
