@@ -21,16 +21,18 @@ func NewRepo(db *sqlx.DB) *Repo {
 
 func (r *Repo) Stands() ([]entity.Stand, error) {
 	const q = `
-	SELECT 
-		id,
-		name,
-		released,
-		owner_id,
-		owner_username,
-		time_claimed,
-		time_released
-	FROM stands
-	ORDER BY name ASC
+	select
+	id,
+	name,
+	released,
+	owner_id,
+	owner_username,
+	time_claimed,
+	time_released
+from
+	stands
+order by
+	name asc
 	`
 
 	var stands []entity.Stand

@@ -31,9 +31,9 @@ func NewBot(cfg *config.Config) (*Bot, error) {
 		return nil, fmt.Errorf("failed to build bot: %w", err)
 	}
 
-	b.Use(Middleware)
-
-	return &Bot{tele: b}, nil
+	return &Bot{
+		tele: b,
+	}, nil
 }
 
 func (b *Bot) Tele() *telebot.Bot {

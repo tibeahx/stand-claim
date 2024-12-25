@@ -49,10 +49,10 @@ var defaultStands = []string{
 }
 
 var defaultCommands = []telebot.Command{
-	{Text: "claim", Description: "Claim a stand"},
-	{Text: "release", Description: "Release currently claimed stand"},
-	{Text: "list", Description: "Show all stands"},
-	{Text: "ping", Description: "Ping current stand owner by username"},
+	{Text: "/claim", Description: "Claim a stand"},
+	{Text: "/release", Description: "Release currently claimed stand"},
+	{Text: "/list", Description: "Show all stands"},
+	{Text: "/ping", Description: "Ping current stand owner by username"},
 }
 
 func (c *Config) teleCommandFromRaw() []telebot.Command {

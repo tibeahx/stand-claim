@@ -18,7 +18,7 @@ func FormatStandStatus(stand entity.Stand) string {
 		timeBusy := time.Since(stand.TimeClaimed)
 
 		return fmt.Sprintf(
-			"busy by @%s for %d hours %s",
+			"busy by @%s for %d h. %s",
 			stand.OwnerUsername,
 			int(timeBusy.Hours()),
 			Busy,

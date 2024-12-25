@@ -4,6 +4,7 @@ import (
 	"fmt"
 
 	"github.com/tibeahx/claimer/app/internal/repo"
+	"github.com/tibeahx/claimer/pkg/entity"
 	"github.com/tibeahx/claimer/pkg/utils"
 
 	"gopkg.in/telebot.v4"
@@ -20,9 +21,26 @@ func NewHandler(b *Bot, repo *repo.Repo) *Handler {
 }
 
 func (h *Handler) Ping(c telebot.Context) error {
-	// owner := entity.OwnerFromContext(c)
-	// c.Chat().
-	return nil
+	stands, err := h.repo.Stands()
+	if err != nil {
+		return err
+	}
+
+	if len(stands) == 0 {
+		return c.Send("No environments found")
+	}
+
+	userStandsMap := make(map[string]entity.Stand)
+
+	for _, stand := range stands {
+		if !stand.Released {
+			userStandsMap[stand.OwnerUsername] = stand
+		}
+
+	}
+
+	// пропинговать всех юзеров которые имеют стенды за собой активные указав при этом на стенд который надо бы освободить
+
 }
 
 func (h *Handler) ListStands(c telebot.Context) error {
@@ -64,11 +82,14 @@ func (h *Handler) Release(c telebot.Context) error {
 }
 
 func (h *Handler) Greetings(c telebot.Context) error {
+	joined := c.Message().UserJoined
+
 	greeting := fmt.Sprintf(
-		"Hello %s, I'm a StandClaimer bot, I will help you to manage enviroments accross the team. Tap `/` on the group menu to see commands",
-		c.Sender().Username,
+		"Hello @%s, I'm a StandClaimer bot, I will help you to manage enviroments accross the team. Tap `/` on the group menu to see commands",
+		joined.Username,
 	)
-	return c.Send(greeting)
+
+	return c.Reply(greeting)
 }
 
 func (h *Handler) Handlers() map[string]telebot.HandlerFunc {

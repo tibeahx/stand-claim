@@ -4,6 +4,7 @@ import (
 	"strings"
 
 	"github.com/tibeahx/claimer/app/internal/config"
+	"github.com/tibeahx/claimer/pkg/log"
 	"gopkg.in/telebot.v4"
 )
 
@@ -13,9 +14,10 @@ func Middleware(handler telebot.HandlerFunc) telebot.HandlerFunc {
 
 func validateCmdMiddleware(next telebot.HandlerFunc) telebot.HandlerFunc {
 	return func(c telebot.Context) error {
-		if strings.HasPrefix(c.Text(), "/") {
+		if strings.HasPrefix(c.Message().Text, "/") {
 			cmdText := strings.Split(c.Text(), "@")[0]
-			cmdText = strings.TrimPrefix(cmdText, "/")
+
+			log.Zap().Infof("got command %s", cmdText)
 
 			if !isValidCommand(cmdText) {
 				return c.Send("unknown command, see `/` for available commands")

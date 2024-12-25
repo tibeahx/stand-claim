@@ -123,7 +123,7 @@ func initCommands(
 	cfg *config.Config,
 	handler *telegram.Handler,
 ) {
-
+	// bot.Tele().Use(telegram.Middleware)
 	bot.Tele().Handle(telebot.OnUserJoined, handler.Greetings)
 	bot.Tele().SetCommands(config.TeleCommands)
 
