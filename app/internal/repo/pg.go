@@ -53,24 +53,42 @@ order by
 	return stands, nil
 }
 
-func (r *Repo) ClaimStand(stand entity.Stand, owner entity.Owner) error {
+func (r *Repo) CreateUser(username string) error {
 	const q = `
-	update stands
-set
-	owner_id = :owner_id,
-	owner_username = :owner_username,
-	time_claimed = now (),
-	released = false
-where
-	name = :name
-	and released = true
+	insert into users (username, created)
+	values (:username, now())
+	on conflict (username) do nothing
 	`
 
 	return dbutils.NamedExec(
 		r.db,
 		q,
 		map[string]any{
-			"owner_id":       owner.ID,
+			"username": username,
+		},
+	)
+}
+
+func (r *Repo) ClaimStand(stand entity.Stand, owner entity.Owner) error {
+	// if err := r.CreateUser(owner.Username); err != nil {
+	// 	return fmt.Errorf("failed to ensure user exists: %w", err)
+	// }
+
+	const q = `
+	update stands
+	set
+		owner_username = :owner_username,
+		time_claimed = now(),
+		released = false
+	where
+		name = :name
+		and released = true
+	`
+
+	return dbutils.NamedExec(
+		r.db,
+		q,
+		map[string]any{
 			"owner_username": owner.Username,
 			"name":           stand.Name,
 		},
@@ -80,21 +98,20 @@ where
 func (r *Repo) ReleaseStand(stand entity.Stand, owner entity.Owner) error {
 	const q = `
 	update stands
-set
-	owner_id = :owner_id,
-	owner_username = :owner_username,
-	time_released = now (),
-	released = true
-where
-	name = :name
-	and released = false
+	set
+		owner_username = null,
+		time_released = now(),
+		released = true
+	where
+		name = :name
+		and released = false
+		and owner_username = :owner_username
 	`
 
 	return dbutils.NamedExec(
 		r.db,
 		q,
 		map[string]any{
-			"owner_id":       owner.ID,
 			"owner_username": owner.Username,
 			"name":           stand.Name,
 		},
