@@ -50,7 +50,7 @@ func (w *Notifier) checkStands() error {
 		return fmt.Errorf("failed to get stands: %w", err)
 	}
 
-	var usersToNotify []string
+	usersToNotify := make([]string, 0)
 
 	for _, stand := range stands {
 		if !stand.Released && stand.OwnerUsername != "" {
