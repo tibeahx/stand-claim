@@ -72,7 +72,7 @@ func (r *Repo) FreeStands() ([]entity.Stand, error) {
 	return nil, nil
 }
 
-func (r *Repo) ClaimStand(standName string, owner entity.Owner) error {
+func (r *Repo) ClaimStand(stand entity.Stand, owner entity.Owner) error {
 	const q = `insert into
 	stands (owner_id, owner_username, time_claimed)
 values
@@ -87,7 +87,7 @@ where
 		map[string]any{
 			"owner_id":       owner.ID,
 			"owner_username": owner.Username,
-			"name":           standName,
+			"name":           stand.Name,
 		},
 	)
 }

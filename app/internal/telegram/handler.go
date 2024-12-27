@@ -2,6 +2,7 @@ package telegram
 
 import (
 	"fmt"
+	"strings"
 
 	"github.com/tibeahx/claimer/app/internal/repo"
 	"github.com/tibeahx/claimer/pkg/entity"
@@ -10,21 +11,58 @@ import (
 	"gopkg.in/telebot.v4"
 )
 
+type notifierFunc func(chatID int64, users ...string) error
 type Handler struct {
 	repo *repo.Repo
+	bot  *Bot
 }
 
 func NewHandler(b *Bot, repo *repo.Repo) *Handler {
 	return &Handler{
 		repo: repo,
+		bot:  b,
 	}
 }
 
-// у меня вообще по идее все данные в базе уже prefill
-// мне нужно решить, какие именно данные оставить в базе, а какие добавлять из запросов
+func (h *Handler) Notify(chatID int64) notifierFunc {
+	return func(chatID int64, users ...string) error {
+		mentions := make([]string, 0, len(users))
+		mentions = append(mentions, users...)
 
-// получаем список всех стендов для ownerInfo.ownerID, ownerInfo.ownerUserName
-// затем мапим [ownerInfo]Stand для всех стендов где !released
+		response := fmt.Sprintf(
+			"%s would you mind to release the stand? It's been busy for more than 100 hours",
+			strings.Join(mentions, ", "),
+		)
+		_, err := h.bot.Tele().Send(&telebot.Chat{ID: chatID}, response)
+
+		return err
+	}
+}
+
+func (h *Handler) PingAll(c telebot.Context) error {
+	stands, err := h.repo.Stands()
+	if err != nil {
+		return err
+	}
+
+	usersToPing := make(map[string]struct{})
+
+	var response string
+
+	for _, stand := range stands {
+		if stand.OwnerUsername == "" || stand.Name == "" {
+			continue
+		}
+		if !stand.Released {
+			for user := range usersToPing {
+				response += fmt.Sprintf("@%s would you mind to release the stand?", user)
+			}
+		}
+	}
+
+	return c.Send(response)
+}
+
 func (h *Handler) Ping(c telebot.Context) error {
 	stands, err := h.repo.Stands()
 	if err != nil {
@@ -35,15 +73,26 @@ func (h *Handler) Ping(c telebot.Context) error {
 		return c.Reply("No environments found")
 	}
 
-	userStandsMap := make(map[string]entity.Stand)
+	usersToPing := make(map[string]struct{})
 
 	for _, stand := range stands {
+		if stand.OwnerUsername == "" || stand.Name == "" {
+			continue
+		}
 		if !stand.Released {
-			userStandsMap[stand.OwnerUsername] = stand
+			usersToPing[stand.OwnerUsername] = struct{}{}
 		}
 	}
-	// пропинговать всех юзеров которые имеют стенды за собой активные указав при этом на стенд который надо бы освободить
-	return nil
+
+	var response string
+
+	usernameToPingFromMessage := c.Message().Payload
+
+	if _, found := usersToPing[usernameToPingFromMessage]; found {
+		response = fmt.Sprintf("@%s would you mind to release the stand?", usernameToPingFromMessage)
+	}
+
+	return c.Send(response)
 }
 
 func (h *Handler) ListStands(c telebot.Context) error {
@@ -76,28 +125,29 @@ func (h *Handler) ListStands(c telebot.Context) error {
 	return c.Reply(response)
 }
 
-// получаем список всех стендов
-// проходимся по стендам, проверяем если стенд занят, отправляем сообщение об ошибка
-// если не занят, то мы можем его заклеймить
 func (h *Handler) Claim(c telebot.Context) error {
 	stands, err := h.repo.Stands()
 	if err != nil {
 		return err
 	}
 
-	freeStands := make(map[string]struct{})
+	standName := c.Message().Payload
 
 	for _, stand := range stands {
-		if !stand.Released {
+		if stand.Name == standName {
+			if stand.Released {
+				h.repo.ClaimStand(stand, entity.NewOwner(c))
+				return c.Send(
+					fmt.Sprintf(
+						"@%s has claimed %s",
+						c.Message().Sender.Username,
+						standName,
+					),
+				)
+			}
+
 			return c.Reply("stand is busy, choose another free one")
 		}
-		freeStands[stand.Name] = struct{}{}
-	}
-
-	standName := c.Sender().Username
-	if _, found := freeStands[standName]; found {
-		h.repo.ClaimStand(standName, entity.NewOwner(c))
-		return c.Send("@%s has claimed %s", c.Message().Sender.Username)
 	}
 
 	return c.Reply("stand not found")
@@ -111,11 +161,20 @@ func (h *Handler) Greetings(c telebot.Context) error {
 	joined := c.Message().UserJoined
 
 	greeting := fmt.Sprintf(
-		"Hello @%s, I'm a StandClaimer bot, I will help you to manage enviroments accross the team. Tap `/` on the group menu to see commands",
+		"Hello @%s, I'm a StandClaimer bot, I will help you to manage environments across the team. "+
+			"Tap `/` on the group menu to see commands",
 		joined.Username,
 	)
 
-	return c.Reply(greeting)
+	return c.Send(greeting)
+}
+
+func (h *Handler) Bot() *Bot {
+	return h.bot
+}
+
+func (h *Handler) Repo() *repo.Repo {
+	return h.repo
 }
 
 func (h *Handler) Handlers() map[string]telebot.HandlerFunc {

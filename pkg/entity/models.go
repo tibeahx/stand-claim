@@ -7,6 +7,11 @@ import (
 	"gopkg.in/telebot.v4"
 )
 
+type ChatInfo struct {
+	ChatID  int64
+	IsGroup bool
+}
+
 type Owner struct {
 	ID       int64  `db:"owner_id"`
 	Username string `db:"owner_username"`

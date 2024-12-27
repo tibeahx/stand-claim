@@ -1,11 +1,13 @@
 package main
 
 import (
+	"context"
 	"fmt"
 	"os"
 	"os/signal"
 	"sync"
 	"syscall"
+	"time"
 
 	"github.com/go-testfixtures/testfixtures/v3"
 	_ "github.com/jackc/pgx/v5/stdlib"
@@ -14,9 +16,12 @@ import (
 	"github.com/tibeahx/claimer/app/internal/config"
 	"github.com/tibeahx/claimer/app/internal/repo"
 	"github.com/tibeahx/claimer/app/internal/telegram"
+	"github.com/tibeahx/claimer/app/internal/worker"
 	"github.com/tibeahx/claimer/pkg/log"
 	"gopkg.in/telebot.v4"
 )
+
+const notifierCheckInterval = 10 * time.Second // для теста пока
 
 func main() {
 	logger := log.Zap()
@@ -44,13 +49,21 @@ func main() {
 	}
 
 	repo := repo.NewRepo(db)
-	if err != nil {
-		logger.Fatal(err)
-	}
+
+	logger.Info("init repo...")
 
 	handler := telegram.NewHandler(bot, repo)
 
 	initCommands(bot, cfg, handler)
+
+	info := telegram.ChatInfo
+
+	notifier := worker.NewWorker(handler, handler.Notify(info.ChatID), 100*time.Hour)
+
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	go notifier.Start(ctx, notifierCheckInterval)
 
 	logger.Info("init cmd handlers...")
 
@@ -70,6 +83,7 @@ func main() {
 		defer wg.Done()
 
 		<-closeCh
+		cancel()
 		bot.Tele().Stop()
 		logger.Info("shutting down...")
 	}()
@@ -123,7 +137,9 @@ func initCommands(
 	cfg *config.Config,
 	handler *telegram.Handler,
 ) {
-	// bot.Tele().Use(telegram.Middleware)
+	bot.Tele().Use(telegram.ValidateCmdMiddleware)
+	bot.Tele().Use(telegram.ChatInfoMiddleware(handler))
+
 	bot.Tele().Handle(telebot.OnUserJoined, handler.Greetings)
 	bot.Tele().SetCommands(config.TeleCommands)
 
