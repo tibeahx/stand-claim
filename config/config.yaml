@@ -15,6 +15,7 @@ bot:
     /claim: "Claim a stand"
     /release: "Release a stand"
     /ping: "Ping current stand owner by username"
+    /ping_all : "Ping all owners whos stands are busy now"
   token: tokenFromENV
   stands: [dev, dev4, staging]
   verbose: true

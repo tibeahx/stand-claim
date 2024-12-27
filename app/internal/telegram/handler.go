@@ -195,10 +195,11 @@ func (h *Handler) Greetings(c telebot.Context) error {
 
 func (h *Handler) Handlers() map[string]telebot.HandlerFunc {
 	return map[string]telebot.HandlerFunc{
-		"/list":    h.ListStands,
-		"/claim":   h.Claim,
-		"/release": h.Release,
-		"/ping":    h.Ping,
+		"/list":     h.ListStands,
+		"/claim":    h.Claim,
+		"/release":  h.Release,
+		"/ping":     h.Ping,
+		"/ping_all": h.PingAll,
 	}
 }
 
