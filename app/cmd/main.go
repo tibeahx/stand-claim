@@ -12,7 +12,6 @@ import (
 	"github.com/go-testfixtures/testfixtures/v3"
 	_ "github.com/jackc/pgx/v5/stdlib"
 	"github.com/jmoiron/sqlx"
-	"github.com/joho/godotenv"
 	"github.com/tibeahx/claimer/app/internal/config"
 	"github.com/tibeahx/claimer/app/internal/repo"
 	"github.com/tibeahx/claimer/app/internal/telegram"
@@ -39,10 +38,6 @@ func main() {
 		logger.Fatalf("failed to init db: %v", err)
 	}
 	defer db.Close()
-
-	if err := godotenv.Load(); err != nil {
-		logger.Fatal(err)
-	}
 
 	bot, err := telegram.NewBot(cfg)
 	if err != nil {
