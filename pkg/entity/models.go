@@ -25,6 +25,11 @@ func NewOwner(c telebot.Context) Owner {
 	}
 }
 
+type User struct {
+	Username string    `db:"username"`
+	Created  time.Time `db:"created"`
+}
+
 type Stand struct {
 	ID            uuid.UUID `db:"id"`
 	Name          string    `db:"name"`
