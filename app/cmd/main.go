@@ -16,7 +16,8 @@ import (
 	"github.com/tibeahx/claimer/app/internal/config"
 	"github.com/tibeahx/claimer/app/internal/repo"
 	"github.com/tibeahx/claimer/app/internal/telegram"
-	"github.com/tibeahx/claimer/app/internal/worker"
+	"github.com/tibeahx/claimer/app/internal/workers"
+	"github.com/tibeahx/claimer/pkg/entity"
 	"github.com/tibeahx/claimer/pkg/log"
 	"gopkg.in/telebot.v4"
 )
@@ -56,20 +57,30 @@ func main() {
 
 	initCommands(bot, cfg, handler)
 
-	info := telegram.ChatInfo
+	logger.Info("init cmd handlers...")
 
-	notifier := worker.NewWorker(handler, handler.Notify(info.ChatID), 100*time.Hour)
+	info := telegram.ChatInfo
 
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
+	notifier := workers.NewNotifier(
+		handler,
+		handler.Notify(info.ChatID),
+		100*time.Hour,
+	)
+
 	go notifier.Start(ctx, notifierCheckInterval)
 
-	logger.Info("init cmd handlers...")
+	logger.Info("init scheduler...")
 
 	bot.Tele().Start()
 
 	logger.Info("bot started...")
+
+	populateUsers(repo, info)
+
+	logger.Info("retrived users from chat and populated users table...")
 
 	var wg sync.WaitGroup
 
@@ -138,7 +149,7 @@ func initCommands(
 	handler *telegram.Handler,
 ) {
 	bot.Tele().Use(telegram.ValidateCmdMiddleware)
-	bot.Tele().Use(telegram.ChatInfoMiddleware(handler))
+	bot.Tele().Use(telegram.ChatInfoMiddleware(bot))
 
 	bot.Tele().Handle(telebot.OnUserJoined, handler.Greetings)
 	bot.Tele().SetCommands(config.TeleCommands)
@@ -146,4 +157,8 @@ func initCommands(
 	for command, h := range handler.Handlers() {
 		bot.Tele().Handle(command, h)
 	}
+}
+
+func populateUsers(repo *repo.Repo, groupInfo entity.ChatInfo) error {
+	return repo.PopulateUsers(groupInfo)
 }

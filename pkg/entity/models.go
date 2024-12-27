@@ -10,6 +10,7 @@ import (
 type ChatInfo struct {
 	ChatID  int64
 	IsGroup bool
+	Members []telebot.ChatMember
 }
 
 type Owner struct {

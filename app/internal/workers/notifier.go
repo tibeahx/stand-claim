@@ -1,4 +1,4 @@
-package worker
+package workers
 
 import (
 	"context"
@@ -15,7 +15,7 @@ type Notifier struct {
 	standOwnershipThreshold time.Duration
 }
 
-func NewWorker(
+func NewNotifier(
 	handler *telegram.Handler,
 	notifyFn func(chatID int64, users ...string) error,
 	threshold time.Duration,

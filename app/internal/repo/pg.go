@@ -36,6 +36,7 @@ order by
 	`
 
 	var stands []entity.Stand
+
 	err := dbutils.NamedSelect(
 		r.db,
 		q,
@@ -52,33 +53,17 @@ order by
 	return stands, nil
 }
 
-// func (r *Repo) StandsByOwner(owner entity.Owner) ([]entity.Stand, error) {
-// 	const q = `select
-// 	id,
-// 	name,
-// 	released,
-// 	owner_id,
-// 	owner_username,
-// 	time_claimed,
-// 	time_released
-// from
-// 	stands
-// where
-// 	owner_id = :owner_id,
-// 	`
-// }
-
-func (r *Repo) FreeStands() ([]entity.Stand, error) {
-	return nil, nil
-}
-
 func (r *Repo) ClaimStand(stand entity.Stand, owner entity.Owner) error {
-	const q = `insert into
-	stands (owner_id, owner_username, time_claimed)
-values
-	(:owner_id, :owner_username, :now ())
+	const q = `
+	update stands
+set
+	owner_id = :owner_id,
+	owner_username = :owner_username,
+	time_claimed = now (),
+	released = false
 where
-	name = :name;
+	name = :name
+	and released = true
 	`
 
 	return dbutils.NamedExec(
@@ -92,6 +77,30 @@ where
 	)
 }
 
-func (r *Repo) ReleaseStand(stand entity.Stand) (string, error) {
-	return "", nil
+func (r *Repo) ReleaseStand(stand entity.Stand, owner entity.Owner) error {
+	const q = `
+	update stands
+set
+	owner_id = :owner_id,
+	owner_username = :owner_username,
+	time_released = now (),
+	released = true
+where
+	name = :name
+	and released = false
+	`
+
+	return dbutils.NamedExec(
+		r.db,
+		q,
+		map[string]any{
+			"owner_id":       owner.ID,
+			"owner_username": owner.Username,
+			"name":           stand.Name,
+		},
+	)
+}
+
+func (r *Repo) PopulateUsers(groupInfo entity.ChatInfo) error {
+	return nil
 }

@@ -1,29 +1,29 @@
-- id: "123e4567-e89b-12d3-a456-426614174001"
-  name: "dev1"
+ 
+- name: "dev1"
   released: false
   owner_id: null
   owner_username: null
   time_claimed: null
   time_released: null
 
-- id: "123e4567-e89b-12d3-a456-426614174002"
-  name: "dev2"
+
+- name: "dev2"
   released: false
   owner_id: null
   owner_username: null
   time_claimed: null
   time_released: null
 
-- id: "123e4567-e89b-12d3-a456-426614174003"
-  name: "dev3"
+
+- name: "dev3"
   released: false
   owner_id: null
   owner_username: "mapstringstruct"
   time_claimed: null
   time_released: null
 
-- id: "123e4567-e89b-12d3-a456-426614174004"
-  name: "dev4"
+
+- name: "dev4"
   released: false
   owner_id: null
   owner_username: null

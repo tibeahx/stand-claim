@@ -11,14 +11,14 @@ import (
 
 var ChatInfo = entity.ChatInfo{}
 
-func ChatInfoMiddleware(h *Handler) telebot.MiddlewareFunc {
+func ChatInfoMiddleware(b *Bot) telebot.MiddlewareFunc {
 	return func(next telebot.HandlerFunc) telebot.HandlerFunc {
 		return func(c telebot.Context) error {
 			if c.Chat().Type == telebot.ChatGroup || c.Chat().Type == telebot.ChatSuperGroup {
 				ChatInfo.ChatID = c.Chat().ID
 				ChatInfo.IsGroup = true
 			}
-			log.Zap().Infof("Chat ID set to: %d", ChatInfo.ChatID)
+			log.Zap().Infof("chat id set to: %d", ChatInfo.ChatID)
 			return next(c)
 		}
 	}

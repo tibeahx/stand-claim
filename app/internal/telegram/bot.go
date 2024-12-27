@@ -9,6 +9,8 @@ import (
 	"gopkg.in/telebot.v4"
 )
 
+const pollerTimeout = 10 * time.Second
+
 type Bot struct {
 	tele *telebot.Bot
 }
@@ -18,7 +20,7 @@ func NewBot(cfg *config.Config) (*Bot, error) {
 		Verbose: cfg.Bot.Verbose,
 		Token:   cfg.Bot.Token,
 		Poller: &telebot.LongPoller{
-			Timeout: 10 * time.Second,
+			Timeout: pollerTimeout,
 			AllowedUpdates: []string{
 				"message",
 				"edited_message",
