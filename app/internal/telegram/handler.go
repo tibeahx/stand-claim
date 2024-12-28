@@ -37,6 +37,7 @@ func (h *Handler) Notify(chatID int64) notifierFunc {
 		}
 
 		mentionsFormatted := make([]string, 0, len(users))
+
 		for _, user := range users {
 			mentionsFormatted = append(mentionsFormatted, "@"+user)
 		}
@@ -47,6 +48,7 @@ func (h *Handler) Notify(chatID int64) notifierFunc {
 		)
 
 		_, err := h.bot.Tele().Send(&telebot.Chat{ID: chatID}, message)
+
 		return err
 	}
 }
@@ -287,9 +289,11 @@ func (h *Handler) Release(c telebot.Context) error {
 		)
 	}
 
-	var menu [][]telebot.InlineButton
-	var row []telebot.InlineButton
-	senderUsername := c.Sender().Username
+	var (
+		menu           = make([][]telebot.InlineButton, 0)
+		row            []telebot.InlineButton
+		senderUsername = c.Sender().Username
+	)
 
 	for _, stand := range stands {
 		if stand.Released || stand.Name == "" || stand.OwnerUsername != senderUsername {

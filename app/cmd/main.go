@@ -163,6 +163,7 @@ func initCommands(
 		c.Message().Payload = standName
 
 		handlers := handler.CallbackHandlers()
+		
 		if h, ok := handlers["/"+action]; ok {
 			err := h(c)
 			if err != nil {
