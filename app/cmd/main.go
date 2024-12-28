@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 	"os/signal"
+	"strings"
 	"sync"
 	"syscall"
 	"time"
@@ -21,7 +22,7 @@ import (
 	"gopkg.in/telebot.v4"
 )
 
-const notifierCheckInterval = 30 * time.Second
+const notifierCheckInterval = 5 * time.Hour
 
 func main() {
 	logger := log.Zap()
@@ -151,7 +152,33 @@ func initCommands(
 	bot.Tele().Handle(telebot.OnUserJoined, handler.Greetings)
 	bot.Tele().SetCommands(config.TeleCommands)
 
-	for command, h := range handler.Handlers() {
+	bot.Tele().Handle(telebot.OnCallback, func(c telebot.Context) error {
+		data := strings.Split(c.Callback().Data, ":")
+		if len(data) != 2 {
+			return c.Respond()
+		}
+
+		action, standName := data[0], data[1]
+
+		c.Message().Payload = standName
+
+		handlers := handler.CallbackHandlers()
+		if h, ok := handlers["/"+action]; ok {
+			err := h(c)
+			if err != nil {
+				return err
+			}
+			return c.Respond()
+		}
+
+		return c.Respond()
+	})
+
+	for command, h := range handler.CallbackHandlers() {
+		bot.Tele().Handle(command, h)
+	}
+
+	for command, h := range handler.CommandHandlers() {
 		bot.Tele().Handle(command, h)
 	}
 }

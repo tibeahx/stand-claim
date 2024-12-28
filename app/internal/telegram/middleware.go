@@ -26,13 +26,18 @@ func ChatInfoMiddleware(b *Bot) telebot.MiddlewareFunc {
 
 func ValidateCmdMiddleware(next telebot.HandlerFunc) telebot.HandlerFunc {
 	return func(c telebot.Context) error {
-		if strings.HasPrefix(c.Message().Text, "/") {
+		if c.Callback() != nil {
+			return next(c)
+		}
+
+		if c.Message() != nil && strings.HasPrefix(c.Message().Text, "/") {
 			cmdText := strings.Split(c.Text(), "@")[0]
 			log.Zap().Infof("got command %s", cmdText)
 			if !isValidCommand(cmdText) {
 				return c.Send("unknown command, see `/` for available commands")
 			}
 		}
+
 		return next(c)
 	}
 }

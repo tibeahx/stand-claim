@@ -66,8 +66,6 @@ func (r *Repo) CreateUser(username string) error {
 	)
 }
 
-
-// сразу с овненом сетится busy
 func (r *Repo) ClaimStand(stand entity.Stand) error {
 	// if err := r.CreateUser(owner.Username); err != nil {
 	// 	return fmt.Errorf("failed to ensure user exists: %w", err)
@@ -99,7 +97,6 @@ func (r *Repo) ReleaseStand(stand entity.Stand) error {
 	update stands
 	set
 		owner_username = null,
-		time_released = now(),
 		released = true
 	where
 		name = :name

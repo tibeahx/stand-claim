@@ -95,25 +95,58 @@ func (h *Handler) Ping(c telebot.Context) error {
 		return c.Reply("No environments found")
 	}
 
-	usersToPing := make(map[string]struct{})
+	if c.Callback() != nil {
+		username := c.Message().Payload
+
+		for _, stand := range stands {
+			if stand.OwnerUsername == username && !stand.Released {
+				return c.Edit(fmt.Sprintf(
+					"@%s would you mind to release the stand?",
+					username),
+				)
+			}
+		}
+		return c.Edit("User has no busy stands")
+	}
+
+	var (
+		menu        = make([][]telebot.InlineButton, 0)
+		row         = make([]telebot.InlineButton, 0)
+		usersToPing = make(map[string]struct{})
+	)
 
 	for _, stand := range stands {
-		if stand.OwnerUsername == "" || stand.Name == "" {
+		if stand.Released || stand.OwnerUsername == "" {
 			continue
 		}
-		if !stand.Released {
+
+		if _, exists := usersToPing[stand.OwnerUsername]; !exists {
 			usersToPing[stand.OwnerUsername] = struct{}{}
+
+			btn := telebot.InlineButton{
+				Text: fmt.Sprintf("@%s (%s)", stand.OwnerUsername, stand.Name),
+				Data: fmt.Sprintf("ping:%s", stand.OwnerUsername),
+			}
+			row = append(row, btn)
+
+			if len(row) == 2 {
+				menu = append(menu, row)
+				row = []telebot.InlineButton{}
+			}
 		}
 	}
 
-	if _, found := usersToPing[c.Message().Payload]; found {
-		return c.Send(fmt.Sprintf(
-			"@%s would you mind to release the stand?",
-			c.Message().Payload),
-		)
+	if len(row) > 0 {
+		menu = append(menu, row)
 	}
 
-	return nil
+	if len(menu) == 0 {
+		return c.Reply("No busy stands found")
+	}
+
+	return c.Reply("Choose user to ping:", &telebot.ReplyMarkup{
+		InlineKeyboard: menu,
+	})
 }
 
 func (h *Handler) ListStands(c telebot.Context) error {
@@ -151,7 +184,6 @@ func (h *Handler) ListStands(c telebot.Context) error {
 	return c.Reply(message)
 }
 
-// для клейма должна всплывать менюшка с доступными стендами
 func (h *Handler) Claim(c telebot.Context) error {
 	stands, err := h.repo.Stands()
 	if err != nil {
@@ -162,30 +194,69 @@ func (h *Handler) Claim(c telebot.Context) error {
 		return c.Reply("No environments found")
 	}
 
+	if c.Callback() != nil {
+		standName := c.Message().Payload
+		senderUsername := c.Callback().Sender.Username
+
+		for _, stand := range stands {
+			if stand.Name == standName {
+				if stand.Released {
+					standToClaim := entity.Stand{
+						Name:          standName,
+						OwnerUsername: senderUsername,
+					}
+
+					if err := h.repo.ClaimStand(standToClaim); err != nil {
+						return c.Edit(fmt.Sprintf("Failed to claim stand: %v", err))
+					}
+
+					return c.Edit(fmt.Sprintf(
+						"@%s has claimed %s",
+						senderUsername,
+						standName),
+					)
+				}
+				return c.Edit("stand is busy, choose another free one")
+			}
+		}
+		return c.Edit("stand not found")
+	}
+
 	var (
-		standName      = c.Message().Payload
-		senderUsername = c.Message().Sender.Username
+		menu = make([][]telebot.InlineButton, 0)
+		row  = make([]telebot.InlineButton, 0)
 	)
 
 	for _, stand := range stands {
-		if stand.Name == standName {
-			if stand.Released {
-				h.repo.ClaimStand(stand)
-				return c.Send(fmt.Sprintf(
-					"@%s has claimed %s",
-					senderUsername,
-					standName),
-				)
-			}
+		if !stand.Released || stand.Name == "" {
+			continue
+		}
 
-			return c.Reply("stand is busy, choose another free one")
+		btn := telebot.InlineButton{
+			Text: fmt.Sprintf("%s %s", comp, stand.Name),
+			Data: fmt.Sprintf("claim:%s", stand.Name),
+		}
+		row = append(row, btn)
+
+		if len(row) == 2 {
+			menu = append(menu, row)
+			row = []telebot.InlineButton{}
 		}
 	}
 
-	return c.Reply("stand not found")
+	if len(row) > 0 {
+		menu = append(menu, row)
+	}
+
+	if len(menu) == 0 {
+		return c.Reply("No free stands available")
+	}
+
+	return c.Reply("Choose stand to claim:", &telebot.ReplyMarkup{
+		InlineKeyboard: menu,
+	})
 }
 
-// для релиза должна всплывать менюшка с доступными стендами
 func (h *Handler) Release(c telebot.Context) error {
 	stands, err := h.repo.Stands()
 	if err != nil {
@@ -196,27 +267,58 @@ func (h *Handler) Release(c telebot.Context) error {
 		return c.Reply("No environments found")
 	}
 
-	var (
-		standName      = c.Message().Payload
-		senderUsername = c.Message().Sender.Username
-	)
+	if c.Callback() != nil {
+		standName := c.Message().Payload
+		senderUsername := c.Callback().Sender.Username
+
+		standToRelease := entity.Stand{
+			Name:          standName,
+			OwnerUsername: senderUsername,
+		}
+
+		if err := h.repo.ReleaseStand(standToRelease); err != nil {
+			return c.Edit(fmt.Sprintf("Failed to release stand: %v", err))
+		}
+
+		return c.Edit(fmt.Sprintf(
+			"@%s has released %s",
+			senderUsername,
+			standName),
+		)
+	}
+
+	var menu [][]telebot.InlineButton
+	var row []telebot.InlineButton
+	senderUsername := c.Sender().Username
 
 	for _, stand := range stands {
-		if stand.Name == standName && stand.OwnerUsername == senderUsername {
-			if !stand.Released {
-				h.repo.ReleaseStand(stand)
-				return c.Send(fmt.Sprintf(
-					"@%s has released %s",
-					senderUsername,
-					standName),
-				)
-			}
+		if stand.Released || stand.Name == "" || stand.OwnerUsername != senderUsername {
+			continue
+		}
 
-			return c.Reply("stand is already free")
+		btn := telebot.InlineButton{
+			Text: fmt.Sprintf("%s %s", comp, stand.Name),
+			Data: fmt.Sprintf("release:%s", stand.Name),
+		}
+		row = append(row, btn)
+
+		if len(row) == 2 {
+			menu = append(menu, row)
+			row = []telebot.InlineButton{}
 		}
 	}
 
-	return c.Reply("stand not found")
+	if len(row) > 0 {
+		menu = append(menu, row)
+	}
+
+	if len(menu) == 0 {
+		return c.Reply("You have no stands to release")
+	}
+
+	return c.Reply("Choose stand to release:", &telebot.ReplyMarkup{
+		InlineKeyboard: menu,
+	})
 }
 
 func (h *Handler) Greetings(c telebot.Context) error {
@@ -227,13 +329,19 @@ func (h *Handler) Greetings(c telebot.Context) error {
 	))
 }
 
-func (h *Handler) Handlers() map[string]telebot.HandlerFunc {
+func (h *Handler) CommandHandlers() map[string]telebot.HandlerFunc {
 	return map[string]telebot.HandlerFunc{
 		"/list":     h.ListStands,
-		"/claim":    h.Claim,
-		"/release":  h.Release,
 		"/ping":     h.Ping,
 		"/ping_all": h.PingAll,
+	}
+}
+
+func (h *Handler) CallbackHandlers() map[string]telebot.HandlerFunc {
+	return map[string]telebot.HandlerFunc{
+		"/claim":   h.Claim,
+		"/release": h.Release,
+		"/ping":    h.Ping,
 	}
 }
 

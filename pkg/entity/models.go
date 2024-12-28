@@ -20,6 +20,6 @@ type User struct {
 type Stand struct {
 	Name          string    `db:"name"`
 	Released      bool      `db:"released"`
-	TimeClaimed   time.Time `db:"time_claimed"`
 	OwnerUsername string    `db:"owner_username"`
+	TimeClaimed   time.Time `db:"time_claimed"`
 }
