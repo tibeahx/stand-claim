@@ -22,13 +22,10 @@ func NewRepo(db *sqlx.DB) *Repo {
 func (r *Repo) Stands() ([]entity.Stand, error) {
 	const q = `
 	select
-	id,
 	name,
 	released,
-	owner_id,
 	owner_username,
-	time_claimed,
-	time_released
+	time_claimed
 from
 	stands
 order by
@@ -69,7 +66,9 @@ func (r *Repo) CreateUser(username string) error {
 	)
 }
 
-func (r *Repo) ClaimStand(stand entity.Stand, owner entity.Owner) error {
+
+// сразу с овненом сетится busy
+func (r *Repo) ClaimStand(stand entity.Stand) error {
 	// if err := r.CreateUser(owner.Username); err != nil {
 	// 	return fmt.Errorf("failed to ensure user exists: %w", err)
 	// }
@@ -89,13 +88,13 @@ func (r *Repo) ClaimStand(stand entity.Stand, owner entity.Owner) error {
 		r.db,
 		q,
 		map[string]any{
-			"owner_username": owner.Username,
+			"owner_username": stand.OwnerUsername,
 			"name":           stand.Name,
 		},
 	)
 }
 
-func (r *Repo) ReleaseStand(stand entity.Stand, owner entity.Owner) error {
+func (r *Repo) ReleaseStand(stand entity.Stand) error {
 	const q = `
 	update stands
 	set
@@ -112,7 +111,7 @@ func (r *Repo) ReleaseStand(stand entity.Stand, owner entity.Owner) error {
 		r.db,
 		q,
 		map[string]any{
-			"owner_username": owner.Username,
+			"owner_username": stand.OwnerUsername,
 			"name":           stand.Name,
 		},
 	)

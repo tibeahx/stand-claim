@@ -32,16 +32,21 @@ func NewHandler(b *Bot, repo *repo.Repo) *Handler {
 
 func (h *Handler) Notify(chatID int64) notifierFunc {
 	return func(chatID int64, users ...string) error {
-		mentions := make([]string, len(users))
-		mentions = append(mentions, users...)
+		if len(users) == 0 {
+			return nil
+		}
 
-		response := fmt.Sprintf(
-			"%s would you mind to release the stand? It's been busy for more than 100 hours",
-			strings.Join(mentions, ", "),
+		mentionsFormatted := make([]string, 0, len(users))
+		for _, user := range users {
+			mentionsFormatted = append(mentionsFormatted, "@"+user)
+		}
+
+		message := fmt.Sprintf(
+			"%s, would you mind to release the stand? It's been busy for more than 100 hours",
+			strings.Join(mentionsFormatted, ", "),
 		)
 
-		_, err := h.bot.Tele().Send(&telebot.Chat{ID: chatID}, response)
-
+		_, err := h.bot.Tele().Send(&telebot.Chat{ID: chatID}, message)
 		return err
 	}
 }
@@ -52,21 +57,32 @@ func (h *Handler) PingAll(c telebot.Context) error {
 		return err
 	}
 
-	mentions := make([]string, 0)
+	if len(stands) == 0 {
+		return c.Reply("No environments found")
+	}
+
+	var (
+		mentions = make(map[string]string, 0)
+		parts    = make([]string, 0)
+	)
 
 	for _, stand := range stands {
-		if !stand.Released {
+		if stand.Released {
 			continue
 		}
-		if stand.OwnerUsername == "" || stand.Name == "" {
-			mentions = append(mentions, stand.OwnerUsername)
+		if stand.OwnerUsername != "" && stand.Name != "" {
+			mentions[stand.OwnerUsername] = stand.Name
+			parts = append(parts, fmt.Sprintf("@%s: %s", stand.OwnerUsername, stand.Name))
 		}
 	}
 
-	return c.Send(fmt.Sprintf(
-		"@%s would you mind to release the stand?",
-		strings.Join(mentions, ", "),
-	))
+	if len(mentions) == 0 {
+		return c.Reply("No busy stands found")
+	}
+
+	message := fmt.Sprintf("%s, would you mind releasing your stands?", strings.Join(parts, ", "))
+
+	return c.Send(message)
 }
 
 func (h *Handler) Ping(c telebot.Context) error {
@@ -91,11 +107,9 @@ func (h *Handler) Ping(c telebot.Context) error {
 	}
 
 	if _, found := usersToPing[c.Message().Payload]; found {
-		return c.Send(
-			fmt.Sprintf(
-				"@%s would you mind to release the stand?",
-				c.Message().Payload,
-			),
+		return c.Send(fmt.Sprintf(
+			"@%s would you mind to release the stand?",
+			c.Message().Payload),
 		)
 	}
 
@@ -112,40 +126,55 @@ func (h *Handler) ListStands(c telebot.Context) error {
 		return c.Reply("No environments found")
 	}
 
+	standInfos := make([]string, 0)
+
 	for _, stand := range stands {
-		if stand.OwnerUsername == "" {
+		if stand.OwnerUsername == "" || stand.Name == "" {
 			continue
 		}
 
-		return c.Reply(fmt.Sprintf(
-			"%s %s %s\n",
+		standInfo := fmt.Sprintf("%s %s %s",
 			comp,
 			stand.Name,
 			formatStandStatus(stand),
-		))
+		)
+
+		standInfos = append(standInfos, standInfo)
 	}
 
-	return nil
+	if len(standInfos) == 0 {
+		return c.Reply("No stands found")
+	}
+
+	message := strings.Join(standInfos, "\n")
+
+	return c.Reply(message)
 }
 
+// для клейма должна всплывать менюшка с доступными стендами
 func (h *Handler) Claim(c telebot.Context) error {
 	stands, err := h.repo.Stands()
 	if err != nil {
 		return err
 	}
 
-	standName := c.Message().Payload
+	if len(stands) == 0 {
+		return c.Reply("No environments found")
+	}
+
+	var (
+		standName      = c.Message().Payload
+		senderUsername = c.Message().Sender.Username
+	)
 
 	for _, stand := range stands {
 		if stand.Name == standName {
 			if stand.Released {
-				h.repo.ClaimStand(stand, entity.NewOwner(c))
-				return c.Send(
-					fmt.Sprintf(
-						"@%s has claimed %s",
-						c.Message().Sender.Username,
-						standName,
-					),
+				h.repo.ClaimStand(stand)
+				return c.Send(fmt.Sprintf(
+					"@%s has claimed %s",
+					senderUsername,
+					standName),
 				)
 			}
 
@@ -156,40 +185,45 @@ func (h *Handler) Claim(c telebot.Context) error {
 	return c.Reply("stand not found")
 }
 
+// для релиза должна всплывать менюшка с доступными стендами
 func (h *Handler) Release(c telebot.Context) error {
 	stands, err := h.repo.Stands()
 	if err != nil {
 		return err
 	}
 
-	standName := c.Message().Payload
+	if len(stands) == 0 {
+		return c.Reply("No environments found")
+	}
+
+	var (
+		standName      = c.Message().Payload
+		senderUsername = c.Message().Sender.Username
+	)
 
 	for _, stand := range stands {
-		if stand.Name == standName {
+		if stand.Name == standName && stand.OwnerUsername == senderUsername {
 			if !stand.Released {
-				h.repo.ReleaseStand(stand, entity.NewOwner(c))
-				return c.Send(
-					fmt.Sprintf(
-						"@%s has released %s",
-						c.Message().Sender.Username,
-						standName,
-					),
+				h.repo.ReleaseStand(stand)
+				return c.Send(fmt.Sprintf(
+					"@%s has released %s",
+					senderUsername,
+					standName),
 				)
 			}
 
-			return c.Reply("stand is already released, choose another busy one")
+			return c.Reply("stand is already free")
 		}
 	}
+
 	return c.Reply("stand not found")
 }
 
 func (h *Handler) Greetings(c telebot.Context) error {
-	joined := c.Message().UserJoined
-
 	return c.Send(fmt.Sprintf(
 		"Hello @%s, I'm StandClaimer bot, I will help you to manage environments across the team. "+
 			"Tap `/` on the group menu to see commands",
-		joined.Username,
+		c.Message().UserJoined.Username,
 	))
 }
 
@@ -216,7 +250,7 @@ func formatStandStatus(stand entity.Stand) string {
 		timeBusy := time.Since(stand.TimeClaimed)
 
 		return fmt.Sprintf(
-			"busy by @%s for %d h. %s",
+			"busy by @%v for %d h. %s",
 			stand.OwnerUsername,
 			int(timeBusy.Hours()),
 			busy,

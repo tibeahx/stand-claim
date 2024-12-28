@@ -21,7 +21,7 @@ import (
 	"gopkg.in/telebot.v4"
 )
 
-const notifierCheckInterval = 10 * time.Second // для теста пока
+const notifierCheckInterval = 30 * time.Second
 
 func main() {
 	logger := log.Zap()
@@ -121,6 +121,8 @@ func initDb(cfg *config.Config) (*sqlx.DB, error) {
 		if err != nil {
 			return nil, err
 		}
+
+		time.Sleep(time.Second)
 
 		err = fixtures.Load()
 		if err != nil {

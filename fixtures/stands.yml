@@ -1,27 +1,19 @@
 - name: "dev1"
   released: false
-  owner_id: null
-  owner_username: null
-  time_claimed: null
-  time_released: null
+  owner_username: "oleg"
+  time_claimed: "2024-03-20 12:00:00"
 
 - name: "dev2"
   released: false
-  owner_id: null
-  owner_username: null
-  time_claimed: null
-  time_released: null
+  owner_username: "ivan"
+  time_claimed: "2024-03-20 12:00:00"
 
 - name: "dev3"
   released: false
-  owner_id: null
   owner_username: "mapstringstruct"
-  time_claimed: null
-  time_released: null
+  time_claimed: "2024-03-20 12:00:00"
 
 - name: "dev4"
   released: false
-  owner_id: null
-  owner_username: null
-  time_claimed: null
-  time_released: null
+  owner_username: "denis"
+  time_claimed: "2024-03-20 12:00:00"
