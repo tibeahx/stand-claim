@@ -5,7 +5,7 @@ Telegram bot for managing dev environments within your team.
 
 ## Features
 
-- Automatic notifications for stands held > n hours
+- Automatic notifications for stands held > n hours (set notifierCheckInterval constant in main.go value to the desired notification interval in time.Time)
 - Interactive buttons for claiming/releasing stands
 - Stand usage duration tracking
 - User management through chat members
