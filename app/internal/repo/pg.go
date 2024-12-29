@@ -52,9 +52,10 @@ order by
 
 func (r *Repo) CreateUser(username string) error {
 	const q = `
-	insert into users (username, created)
-	values (:username, now())
-	on conflict (username) do nothing
+	insert into
+	users (username, created)
+values
+	(:username, now ()) on conflict (username) do nothing
 	`
 
 	return dbutils.NamedExec(
@@ -67,10 +68,6 @@ func (r *Repo) CreateUser(username string) error {
 }
 
 func (r *Repo) ClaimStand(stand entity.Stand) error {
-	// if err := r.CreateUser(owner.Username); err != nil {
-	// 	return fmt.Errorf("failed to ensure user exists: %w", err)
-	// }
-
 	const q = `
 	update stands
 	set
@@ -114,6 +111,17 @@ func (r *Repo) ReleaseStand(stand entity.Stand) error {
 	)
 }
 
-func (r *Repo) PopulateUsers(groupInfo entity.ChatInfo) error {
-	return nil
+func (r *Repo) DeleteUser(username string) error {
+	const q = `
+	delete from users
+	where username = :username
+	`
+
+	return dbutils.NamedExec(
+		r.db,
+		q,
+		map[string]any{
+			"username": username,
+		},
+	)
 }
