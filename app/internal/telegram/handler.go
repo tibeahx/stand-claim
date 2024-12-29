@@ -291,7 +291,7 @@ func (h *Handler) Release(c telebot.Context) error {
 
 	var (
 		menu           = make([][]telebot.InlineButton, 0)
-		row            []telebot.InlineButton
+		row            = make([]telebot.InlineButton, 0)
 		senderUsername = c.Sender().Username
 	)
 
