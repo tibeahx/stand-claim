@@ -36,11 +36,12 @@ Telegram bot for managing dev environments within your team.
     bot:
         stands: [dev1, dev2, staging] # your enviroments environments 
 ```
-4. Run with docker:
+4. Configure fixtures to seed base data in Postgres
+5. Run with docker:
 ```bash
 docker-compose up -d --build
 ```
-5. Bot Setup:
+6. Bot Setup:
 - Create bot via [@BotFather](https://t.me/botfather)
 - Add bot to team chat
 - Grant admin rights
