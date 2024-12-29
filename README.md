@@ -34,7 +34,7 @@ Telegram bot for managing dev environments within your team.
         sslmode: disable
         use_seed: true
     bot:
-        stands: [dev1, dev2, staging] # your enviroments environments 
+        stands: [dev1, dev2, staging] # your enviroments 
 ```
 4. Configure fixtures to seed base data in Postgres
 5. Run with docker:
