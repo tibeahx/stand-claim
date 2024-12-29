@@ -12,12 +12,6 @@ import (
 
 type notifierFunc func(chatID int64, users ...string) error
 
-const (
-	free = "✅"
-	busy = "❌"
-	comp = "🖥️"
-)
-
 type Handler struct {
 	repo *repo.Repo
 	bot  *Bot
@@ -60,7 +54,7 @@ func (h *Handler) PingAll(c telebot.Context) error {
 	}
 
 	if len(stands) == 0 {
-		return c.Reply("No environments found")
+		return c.Reply(ErrNoEnvironments)
 	}
 
 	var (
@@ -74,15 +68,15 @@ func (h *Handler) PingAll(c telebot.Context) error {
 		}
 		if stand.OwnerUsername != "" && stand.Name != "" {
 			mentions[stand.OwnerUsername] = stand.Name
-			parts = append(parts, fmt.Sprintf("@%s: %s", stand.OwnerUsername, stand.Name))
+			parts = append(parts, fmt.Sprintf(TplUserStand, stand.OwnerUsername, stand.Name))
 		}
 	}
 
 	if len(mentions) == 0 {
-		return c.Reply("No busy stands found")
+		return c.Reply(ErrNoBusyStands)
 	}
 
-	message := fmt.Sprintf("%s, would you mind releasing your stands?", strings.Join(parts, ", "))
+	message := fmt.Sprintf(TplPingAllUsers, strings.Join(parts, ", "))
 
 	return c.Send(message)
 }
@@ -94,7 +88,7 @@ func (h *Handler) Ping(c telebot.Context) error {
 	}
 
 	if len(stands) == 0 {
-		return c.Reply("No environments found")
+		return c.Reply(ErrNoEnvironments)
 	}
 
 	if c.Callback() != nil {
@@ -102,13 +96,10 @@ func (h *Handler) Ping(c telebot.Context) error {
 
 		for _, stand := range stands {
 			if stand.OwnerUsername == username && !stand.Released {
-				return c.Edit(fmt.Sprintf(
-					"@%s would you mind to release the stand?",
-					username),
-				)
+				return c.Edit(fmt.Sprintf(TplPingUser, username))
 			}
 		}
-		return c.Edit("User has no busy stands")
+		return c.Edit(ErrNoBusyStands)
 	}
 
 	var (
@@ -143,10 +134,10 @@ func (h *Handler) Ping(c telebot.Context) error {
 	}
 
 	if len(menu) == 0 {
-		return c.Reply("No busy stands found")
+		return c.Reply(ErrNoBusyStands)
 	}
 
-	return c.Reply("Choose user to ping:", &telebot.ReplyMarkup{
+	return c.Reply(MsgChooseUserToPing, &telebot.ReplyMarkup{
 		InlineKeyboard: menu,
 	})
 }
@@ -158,7 +149,7 @@ func (h *Handler) ListStands(c telebot.Context) error {
 	}
 
 	if len(stands) == 0 {
-		return c.Reply("No environments found")
+		return c.Reply(ErrNoEnvironments)
 	}
 
 	standInfos := make([]string, 0)
@@ -168,8 +159,8 @@ func (h *Handler) ListStands(c telebot.Context) error {
 			continue
 		}
 
-		standInfo := fmt.Sprintf("%s %s %s",
-			comp,
+		standInfo := fmt.Sprintf(TplStandInfo,
+			EmojiComputer,
 			stand.Name,
 			formatStandStatus(stand),
 		)
@@ -178,7 +169,7 @@ func (h *Handler) ListStands(c telebot.Context) error {
 	}
 
 	if len(standInfos) == 0 {
-		return c.Reply("No stands found")
+		return c.Reply(ErrNoEnvironments)
 	}
 
 	message := strings.Join(standInfos, "\n")
@@ -193,7 +184,7 @@ func (h *Handler) Claim(c telebot.Context) error {
 	}
 
 	if len(stands) == 0 {
-		return c.Reply("No environments found")
+		return c.Reply(ErrNoEnvironments)
 	}
 
 	if c.Callback() != nil {
@@ -209,19 +200,19 @@ func (h *Handler) Claim(c telebot.Context) error {
 					}
 
 					if err := h.repo.ClaimStand(standToClaim); err != nil {
-						return c.Edit(fmt.Sprintf("Failed to claim stand: %v", err))
+						return c.Edit(fmt.Sprintf(ErrFailedToClaim, err))
 					}
 
 					return c.Edit(fmt.Sprintf(
-						"@%s has claimed %s",
+						TplStandClaimed,
 						senderUsername,
 						standName),
 					)
 				}
-				return c.Edit("stand is busy, choose another free one")
+				return c.Edit(ErrStandBusy)
 			}
 		}
-		return c.Edit("stand not found")
+		return c.Edit(ErrStandNotFound)
 	}
 
 	var (
@@ -235,7 +226,7 @@ func (h *Handler) Claim(c telebot.Context) error {
 		}
 
 		btn := telebot.InlineButton{
-			Text: fmt.Sprintf("%s %s", comp, stand.Name),
+			Text: fmt.Sprintf("%s %s", EmojiComputer, stand.Name),
 			Data: fmt.Sprintf("claim:%s", stand.Name),
 		}
 		row = append(row, btn)
@@ -251,10 +242,10 @@ func (h *Handler) Claim(c telebot.Context) error {
 	}
 
 	if len(menu) == 0 {
-		return c.Reply("No free stands available")
+		return c.Reply(ErrNoFreeStands)
 	}
 
-	return c.Reply("Choose stand to claim:", &telebot.ReplyMarkup{
+	return c.Reply(MsgChooseStand, &telebot.ReplyMarkup{
 		InlineKeyboard: menu,
 	})
 }
@@ -266,7 +257,7 @@ func (h *Handler) Release(c telebot.Context) error {
 	}
 
 	if len(stands) == 0 {
-		return c.Reply("No environments found")
+		return c.Reply(ErrNoEnvironments)
 	}
 
 	if c.Callback() != nil {
@@ -279,11 +270,11 @@ func (h *Handler) Release(c telebot.Context) error {
 		}
 
 		if err := h.repo.ReleaseStand(standToRelease); err != nil {
-			return c.Edit(fmt.Sprintf("Failed to release stand: %v", err))
+			return c.Edit(fmt.Sprintf(ErrFailedToRelease, err))
 		}
 
 		return c.Edit(fmt.Sprintf(
-			"@%s has released %s",
+			TplStandReleased,
 			senderUsername,
 			standName),
 		)
@@ -301,7 +292,7 @@ func (h *Handler) Release(c telebot.Context) error {
 		}
 
 		btn := telebot.InlineButton{
-			Text: fmt.Sprintf("%s %s", comp, stand.Name),
+			Text: fmt.Sprintf("%s %s", EmojiComputer, stand.Name),
 			Data: fmt.Sprintf("release:%s", stand.Name),
 		}
 		row = append(row, btn)
@@ -317,18 +308,17 @@ func (h *Handler) Release(c telebot.Context) error {
 	}
 
 	if len(menu) == 0 {
-		return c.Reply("You have no stands to release")
+		return c.Reply(ErrNoStandsToRelease)
 	}
 
-	return c.Reply("Choose stand to release:", &telebot.ReplyMarkup{
+	return c.Reply(MsgChooseToRelease, &telebot.ReplyMarkup{
 		InlineKeyboard: menu,
 	})
 }
 
 func (h *Handler) Greetings(c telebot.Context) error {
 	return c.Send(fmt.Sprintf(
-		"Hello @%s, I'm StandClaimer bot, I will help you to manage environments across the team. "+
-			"Tap `/` on the group menu to see commands",
+		TplGreetings,
 		c.Message().UserJoined.Username,
 	))
 }
@@ -362,12 +352,12 @@ func formatStandStatus(stand entity.Stand) string {
 		timeBusy := time.Since(stand.TimeClaimed)
 
 		return fmt.Sprintf(
-			"busy by @%v for %d h. %s",
+			TplStandBusyBy,
 			stand.OwnerUsername,
 			int(timeBusy.Hours()),
-			busy,
+			EmojiBusy,
 		)
 	}
 
-	return fmt.Sprintf("is finally free %s", free)
+	return fmt.Sprintf(TplStandFree, EmojiFree)
 }
