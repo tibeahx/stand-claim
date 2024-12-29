@@ -73,7 +73,7 @@ func (c *Config) teleCommandFromRaw() []telebot.Command {
 	return nil
 }
 
-func Load(cfgPath string) error {
+func load(cfgPath string) error {
 	var cfg *Config
 
 	cfgFileBytes, err := os.ReadFile(cfgPath)
@@ -108,7 +108,7 @@ func Load(cfgPath string) error {
 func Get() (*Config, error) {
 	cfgPath := "config/config.yaml"
 	if config == nil {
-		err := Load(cfgPath)
+		err := load(cfgPath)
 		if err != nil {
 			return nil, err
 		}
