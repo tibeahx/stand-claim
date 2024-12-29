@@ -1,6 +1,7 @@
 package config
 
 import (
+	"errors"
 	"fmt"
 	"os"
 
@@ -73,6 +74,8 @@ func (c *Config) teleCommandFromRaw() []telebot.Command {
 	return nil
 }
 
+var errEmptyToken = errors.New("bot token is empty")
+
 func load(cfgPath string) error {
 	var cfg *Config
 
@@ -93,7 +96,7 @@ func load(cfgPath string) error {
 
 	cfg.Bot.Token = os.Getenv(botTokenKey)
 	if cfg.Bot.Token == "" {
-		return fmt.Errorf("bot token is empty")
+		return errEmptyToken
 	}
 
 	if len(cfg.Bot.Stands) == 0 {

@@ -2,14 +2,6 @@
 
 Telegram bot for managing dev environments within your team.
 
-
-## Features
-
-- Automatic notifications for stands held > n hours (set notifierCheckInterval constant in main.go value to the desired notification interval in time.Time)
-- Interactive buttons for claiming/releasing stands
-- Stand usage duration tracking
-- User management through chat members
-
 ## Commands
 
 - `/list` - Show all stands with their status and ownership duration
@@ -18,10 +10,40 @@ Telegram bot for managing dev environments within your team.
 - `/ping` - Ping specific stand owner
 - `/ping_all` - Ping all users with busy stands
 
-## Usage and deployment 
+## Features
 
-1. Set .env like: BOT_TOKEN=123456
-2. Set your values in config/config.yaml
-3. Build and run the image via docker compose
-4. Add your bot instance to your team chat
-5. Forget about fighting for free enviroment
+- Automatic notifications for stands held > n hours
+- Interactive buttons for claiming/releasing stands
+- Stand usage duration tracking
+- User management through chat members
+
+
+## Quick Start
+
+1. Clone the repository
+2. Create `.env` file: BOT_TOKEN=your_telegram_bot_token
+3. Configure in `config/config.yaml`: 
+```yaml
+    postgres:
+    dsn:
+    host: db
+    port: 5432
+    user: postgres
+    password: postgres
+    db_name: stands
+    sslmode: disable
+    use_seed: true
+    bot:
+    token: ${BOT_TOKEN}
+    stands: [dev1, dev2, staging] # your enviroments environments 
+```
+4. Run with docker:
+```bash
+docker-compose up -d --build
+```
+5. Bot Setup:
+- Create bot via [@BotFather](https://t.me/botfather)
+- Add bot to team chat
+- Grant admin rights
+- Start using commands
+
