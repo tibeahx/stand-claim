@@ -34,6 +34,9 @@ func (w *Notifier) Start(ctx context.Context, interval time.Duration) {
 	for {
 		select {
 		case <-ctx.Done():
+			log.WithSource(
+				log.Zap().Desugar(), "notifier").
+				Info("shut down")
 			return
 		case <-ticker.C:
 			if err := w.checkStands(); err != nil {

@@ -37,7 +37,6 @@ func main() {
 	if err != nil {
 		logger.Fatalf("failed to init db: %v", err)
 	}
-	defer db.Close()
 
 	bot, err := telegram.NewBot(cfg)
 	if err != nil {
@@ -90,6 +89,7 @@ func main() {
 		cancel()
 
 		bot.Tele().Stop()
+		db.Close()
 
 		logger.Info("shutting down...")
 	}()
