@@ -24,7 +24,7 @@ func (r *Repo) Stands() ([]entity.Stand, error) {
 	select
 	name,
 	released,
-	owner_username,
+	coalesce(owner_username, '') as owner_username,
 	time_claimed
 from
 	stands

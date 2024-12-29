@@ -17,6 +17,11 @@ type Handler struct {
 	bot  *Bot
 }
 
+type inlineButton struct {
+	text string
+	data string
+}
+
 func NewHandler(b *Bot, repo *repo.Repo) *Handler {
 	return &Handler{
 		repo: repo,
@@ -47,19 +52,28 @@ func (h *Handler) Notify(chatID int64) notifierFunc {
 	}
 }
 
-func (h *Handler) PingAll(c telebot.Context) error {
+func (h *Handler) checkStands(c telebot.Context) ([]entity.Stand, error) {
 	stands, err := h.repo.Stands()
+	if err != nil {
+		return nil, err
+	}
+
+	if len(stands) == 0 {
+		return nil, c.Reply(ErrNoEnvironments)
+	}
+
+	return stands, nil
+}
+
+func (h *Handler) PingAll(c telebot.Context) error {
+	stands, err := h.checkStands(c)
 	if err != nil {
 		return err
 	}
 
-	if len(stands) == 0 {
-		return c.Reply(ErrNoEnvironments)
-	}
-
 	var (
-		mentions = make(map[string]string, 0)
-		parts    = make([]string, 0)
+		mentions = make(map[string]string)
+		parts    = make([]string, 0, len(stands))
 	)
 
 	for _, stand := range stands {
@@ -77,18 +91,13 @@ func (h *Handler) PingAll(c telebot.Context) error {
 	}
 
 	message := fmt.Sprintf(TplPingAllUsers, strings.Join(parts, ", "))
-
 	return c.Send(message)
 }
 
 func (h *Handler) Ping(c telebot.Context) error {
-	stands, err := h.repo.Stands()
+	stands, err := h.checkStands(c)
 	if err != nil {
 		return err
-	}
-
-	if len(stands) == 0 {
-		return c.Reply(ErrNoEnvironments)
 	}
 
 	if c.Callback() != nil {
@@ -102,11 +111,8 @@ func (h *Handler) Ping(c telebot.Context) error {
 		return c.Edit(ErrNoBusyStands)
 	}
 
-	var (
-		menu        = make([][]telebot.InlineButton, 0)
-		row         = make([]telebot.InlineButton, 0)
-		usersToPing = make(map[string]struct{})
-	)
+	buttons := make([]inlineButton, 0, len(stands))
+	usersToPing := make(map[string]struct{}, len(stands))
 
 	for _, stand := range stands {
 		if stand.Released || stand.OwnerUsername == "" {
@@ -115,28 +121,18 @@ func (h *Handler) Ping(c telebot.Context) error {
 
 		if _, exists := usersToPing[stand.OwnerUsername]; !exists {
 			usersToPing[stand.OwnerUsername] = struct{}{}
-
-			btn := telebot.InlineButton{
-				Text: fmt.Sprintf("@%s (%s)", stand.OwnerUsername, stand.Name),
-				Data: fmt.Sprintf("ping:%s", stand.OwnerUsername),
-			}
-			row = append(row, btn)
-
-			if len(row) == 2 {
-				menu = append(menu, row)
-				row = []telebot.InlineButton{}
-			}
+			buttons = append(buttons, inlineButton{
+				text: fmt.Sprintf(TplButtonUser, stand.OwnerUsername, stand.Name),
+				data: fmt.Sprintf("ping:%s", stand.OwnerUsername),
+			})
 		}
 	}
 
-	if len(row) > 0 {
-		menu = append(menu, row)
-	}
-
-	if len(menu) == 0 {
+	if len(buttons) == 0 {
 		return c.Reply(ErrNoBusyStands)
 	}
 
+	menu := createInlineKeyboard(buttons)
 	return c.Reply(MsgChooseUserToPing, &telebot.ReplyMarkup{
 		InlineKeyboard: menu,
 	})
@@ -152,7 +148,7 @@ func (h *Handler) ListStands(c telebot.Context) error {
 		return c.Reply(ErrNoEnvironments)
 	}
 
-	standInfos := make([]string, 0)
+	standInfos := make([]string, 0, len(stands))
 
 	for _, stand := range stands {
 		if stand.OwnerUsername == "" || stand.Name == "" {
@@ -178,13 +174,9 @@ func (h *Handler) ListStands(c telebot.Context) error {
 }
 
 func (h *Handler) Claim(c telebot.Context) error {
-	stands, err := h.repo.Stands()
+	stands, err := h.checkStands(c)
 	if err != nil {
 		return err
-	}
-
-	if len(stands) == 0 {
-		return c.Reply(ErrNoEnvironments)
 	}
 
 	if c.Callback() != nil {
@@ -203,11 +195,7 @@ func (h *Handler) Claim(c telebot.Context) error {
 						return c.Edit(fmt.Sprintf(ErrFailedToClaim, err))
 					}
 
-					return c.Edit(fmt.Sprintf(
-						TplStandClaimed,
-						senderUsername,
-						standName),
-					)
+					return c.Edit(fmt.Sprintf(TplStandClaimed, senderUsername, standName))
 				}
 				return c.Edit(ErrStandBusy)
 			}
@@ -215,49 +203,33 @@ func (h *Handler) Claim(c telebot.Context) error {
 		return c.Edit(ErrStandNotFound)
 	}
 
-	var (
-		menu = make([][]telebot.InlineButton, 0)
-		row  = make([]telebot.InlineButton, 0)
-	)
+	buttons := make([]inlineButton, 0, len(stands))
 
 	for _, stand := range stands {
 		if !stand.Released || stand.Name == "" {
 			continue
 		}
 
-		btn := telebot.InlineButton{
-			Text: fmt.Sprintf("%s %s", EmojiComputer, stand.Name),
-			Data: fmt.Sprintf("claim:%s", stand.Name),
-		}
-		row = append(row, btn)
-
-		if len(row) == 2 {
-			menu = append(menu, row)
-			row = []telebot.InlineButton{}
-		}
+		buttons = append(buttons, inlineButton{
+			text: fmt.Sprintf(TplButtonStand, EmojiComputer, stand.Name),
+			data: fmt.Sprintf("claim:%s", stand.Name),
+		})
 	}
 
-	if len(row) > 0 {
-		menu = append(menu, row)
-	}
-
-	if len(menu) == 0 {
+	if len(buttons) == 0 {
 		return c.Reply(ErrNoFreeStands)
 	}
 
+	menu := createInlineKeyboard(buttons)
 	return c.Reply(MsgChooseStand, &telebot.ReplyMarkup{
 		InlineKeyboard: menu,
 	})
 }
 
 func (h *Handler) Release(c telebot.Context) error {
-	stands, err := h.repo.Stands()
+	stands, err := h.checkStands(c)
 	if err != nil {
 		return err
-	}
-
-	if len(stands) == 0 {
-		return c.Reply(ErrNoEnvironments)
 	}
 
 	if c.Callback() != nil {
@@ -273,44 +245,28 @@ func (h *Handler) Release(c telebot.Context) error {
 			return c.Edit(fmt.Sprintf(ErrFailedToRelease, err))
 		}
 
-		return c.Edit(fmt.Sprintf(
-			TplStandReleased,
-			senderUsername,
-			standName),
-		)
+		return c.Edit(fmt.Sprintf(TplStandReleased, senderUsername, standName))
 	}
 
-	var (
-		menu           = make([][]telebot.InlineButton, 0)
-		row            = make([]telebot.InlineButton, 0)
-		senderUsername = c.Sender().Username
-	)
+	buttons := make([]inlineButton, 0, len(stands))
+	senderUsername := c.Sender().Username
 
 	for _, stand := range stands {
 		if stand.Released || stand.Name == "" || stand.OwnerUsername != senderUsername {
 			continue
 		}
 
-		btn := telebot.InlineButton{
-			Text: fmt.Sprintf("%s %s", EmojiComputer, stand.Name),
-			Data: fmt.Sprintf("release:%s", stand.Name),
-		}
-		row = append(row, btn)
-
-		if len(row) == 2 {
-			menu = append(menu, row)
-			row = []telebot.InlineButton{}
-		}
+		buttons = append(buttons, inlineButton{
+			text: fmt.Sprintf(TplButtonStand, EmojiComputer, stand.Name),
+			data: fmt.Sprintf("release:%s", stand.Name),
+		})
 	}
 
-	if len(row) > 0 {
-		menu = append(menu, row)
-	}
-
-	if len(menu) == 0 {
+	if len(buttons) == 0 {
 		return c.Reply(ErrNoStandsToRelease)
 	}
 
+	menu := createInlineKeyboard(buttons)
 	return c.Reply(MsgChooseToRelease, &telebot.ReplyMarkup{
 		InlineKeyboard: menu,
 	})
@@ -345,6 +301,32 @@ func (h *Handler) Bot() *Bot {
 
 func (h *Handler) Repo() *repo.Repo {
 	return h.repo
+}
+
+func createInlineKeyboard(items []inlineButton) [][]telebot.InlineButton {
+	var (
+		menu = make([][]telebot.InlineButton, 0, (len(items)+1)/2)
+		row  = make([]telebot.InlineButton, 0, 2)
+	)
+
+	for _, item := range items {
+		btn := telebot.InlineButton{
+			Text: item.text,
+			Data: item.data,
+		}
+		row = append(row, btn)
+
+		if len(row) == 2 {
+			menu = append(menu, row)
+			row = []telebot.InlineButton{}
+		}
+	}
+
+	if len(row) > 0 {
+		menu = append(menu, row)
+	}
+
+	return menu
 }
 
 func formatStandStatus(stand entity.Stand) string {
