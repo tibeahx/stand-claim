@@ -17,7 +17,6 @@ import (
 	"github.com/tibeahx/claimer/app/internal/repo"
 	"github.com/tibeahx/claimer/app/internal/telegram"
 	"github.com/tibeahx/claimer/app/internal/workers"
-	"github.com/tibeahx/claimer/pkg/entity"
 	"github.com/tibeahx/claimer/pkg/log"
 	"gopkg.in/telebot.v4"
 )
@@ -74,8 +73,6 @@ func main() {
 
 	logger.Info("bot started...")
 
-	populateUsers(repo, info)
-
 	logger.Info("retrived users from chat and populated users table...")
 
 	var wg sync.WaitGroup
@@ -91,9 +88,12 @@ func main() {
 
 		<-closeCh
 		cancel()
+
 		bot.Tele().Stop()
+
 		logger.Info("shutting down...")
 	}()
+
 	wg.Wait()
 }
 
@@ -163,7 +163,7 @@ func initCommands(
 		c.Message().Payload = standName
 
 		handlers := handler.CallbackHandlers()
-		
+
 		if h, ok := handlers["/"+action]; ok {
 			err := h(c)
 			if err != nil {
@@ -182,8 +182,4 @@ func initCommands(
 	for command, h := range handler.CommandHandlers() {
 		bot.Tele().Handle(command, h)
 	}
-}
-
-func populateUsers(repo *repo.Repo, groupInfo entity.ChatInfo) error {
-	return repo.PopulateUsers(groupInfo)
 }
