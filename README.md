@@ -45,4 +45,5 @@ docker-compose up -d --build
 - Add bot to team chat
 - Grant admin rights
 - Start using commands
+``` NOTE: automatic notifications will start right after bot received any of commands ```
 
