@@ -2,14 +2,6 @@
 
 Telegram bot for managing dev environments within your team.
 
-## Commands
-
-- `/list` - Show all stands with their status and ownership duration
-- `/claim` - Claim available stand via interactive buttons
-- `/release` - Release your stand
-- `/ping` - Ping specific stand owner
-- `/ping_all` - Ping all users with busy stands
-
 ## Features
 
 - Automatic notifications for stands held > n hours
@@ -17,6 +9,13 @@ Telegram bot for managing dev environments within your team.
 - Stand usage duration tracking
 - User management through chat members
 
+## Commands
+
+- `/list` - Show all stands with their status and ownership duration
+- `/claim` - Claim available stand via interactive buttons
+- `/release` - Release your stand
+- `/ping` - Ping specific stand owner
+- `/ping_all` - Ping all users with busy stands
 
 ## Quick Start
 
