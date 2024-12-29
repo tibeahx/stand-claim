@@ -34,7 +34,6 @@ Telegram bot for managing dev environments within your team.
         sslmode: disable
         use_seed: true
     bot:
-        token: ${BOT_TOKEN}
         stands: [dev1, dev2, staging] # your enviroments environments 
 ```
 4. Run with docker:
