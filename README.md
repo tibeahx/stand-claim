@@ -25,17 +25,17 @@ Telegram bot for managing dev environments within your team.
 3. Configure in `config/config.yaml`: 
 ```yaml
     postgres:
-    dsn:
-    host: db
-    port: 5432
-    user: postgres
-    password: postgres
-    db_name: stands
-    sslmode: disable
-    use_seed: true
+        dsn:
+        host: db
+        port: 5432
+        user: postgres
+        password: postgres
+        db_name: stands
+        sslmode: disable
+        use_seed: true
     bot:
-    token: ${BOT_TOKEN}
-    stands: [dev1, dev2, staging] # your enviroments environments 
+        token: ${BOT_TOKEN}
+        stands: [dev1, dev2, staging] # your enviroments environments 
 ```
 4. Run with docker:
 ```bash
