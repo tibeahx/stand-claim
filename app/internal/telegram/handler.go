@@ -78,19 +78,6 @@ func (h *Handler) Notify(chatID int64) notifierFunc {
 	}
 }
 
-func (h *Handler) checkStands(c telebot.Context) ([]entity.Stand, error) {
-	stands, err := h.repo.Stands()
-	if err != nil {
-		return nil, err
-	}
-
-	if len(stands) == 0 {
-		return nil, c.Reply(ErrNoEnvironments)
-	}
-
-	return stands, nil
-}
-
 func (h *Handler) CreateUser(c telebot.Context) error {
 	u := c.ChatMember().NewChatMember.User.Username
 
@@ -200,13 +187,9 @@ func (h *Handler) Ping(c telebot.Context) error {
 }
 
 func (h *Handler) ListStands(c telebot.Context) error {
-	stands, err := h.repo.Stands()
+	stands, err := h.checkStands(c)
 	if err != nil {
 		return err
-	}
-
-	if len(stands) == 0 {
-		return c.Reply(ErrNoEnvironments)
 	}
 
 	standInfos := make([]string, 0, len(stands))
@@ -362,6 +345,19 @@ func (h *Handler) Bot() *Bot {
 
 func (h *Handler) Repo() *repo.Repo {
 	return h.repo
+}
+
+func (h *Handler) checkStands(c telebot.Context) ([]entity.Stand, error) {
+	stands, err := h.repo.Stands()
+	if err != nil {
+		return nil, err
+	}
+
+	if len(stands) == 0 {
+		return nil, c.Reply(ErrNoEnvironments)
+	}
+
+	return stands, nil
 }
 
 func createInlineKeyboard(items []inlineButton) [][]telebot.InlineButton {
