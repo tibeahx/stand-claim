@@ -21,7 +21,7 @@ Telegram bot for managing dev environments within your team.
 
 1. Clone the repository
 2. Create `.env` file: ```BOT_TOKEN=your_telegram_bot_token ```
-3. Create `config.yaml` with command ```mkdir ./config/config.yaml``` and confinure the following : 
+3. Create `config.yaml` with command ```mkdir -p ./config && touch ./config/config.yaml``` and confinure the following : 
 ```yaml
     postgres:
         dsn:
