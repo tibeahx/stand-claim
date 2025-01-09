@@ -45,5 +45,6 @@ docker-compose up -d --build
 - Add bot to team chat
 - Grant admin rights
 - Start using commands
+- Bot listens to UserJoin and UserLeft events to either set or delete users from database
 ``` NOTE: automatic notifications will start right after bot received any of commands ```
 
