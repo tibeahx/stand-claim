@@ -1,6 +1,7 @@
 package telegram
 
 import (
+	"errors"
 	"fmt"
 	"strings"
 	"time"
@@ -52,10 +53,12 @@ func (h *Handler) HandleCallbacks(c telebot.Context) error {
 	return c.Respond()
 }
 
+var errNoUsersProvided = errors.New("no users provided")
+
 func (h *Handler) Notify(chatID int64) notifierFunc {
 	return func(chatID int64, users ...string) error {
 		if len(users) == 0 {
-			return nil
+			return errNoUsersProvided
 		}
 
 		mentionsFormatted := make([]string, 0, len(users))
