@@ -11,19 +11,19 @@ import (
 
 type Notifier struct {
 	handler                 *telegram.Handler
-	notifyFn                func(chatID int64, users ...string) error
+	fn                      func(chatID int64, users ...string) error
 	standOwnershipThreshold time.Duration
 }
 
 func NewNotifier(
 	handler *telegram.Handler,
 	notifyFn func(chatID int64, users ...string) error,
-	threshold time.Duration,
+	standOwnershipThreshold time.Duration,
 ) *Notifier {
 	return &Notifier{
 		handler:                 handler,
-		notifyFn:                notifyFn,
-		standOwnershipThreshold: threshold,
+		fn:                      notifyFn,
+		standOwnershipThreshold: standOwnershipThreshold,
 	}
 }
 
@@ -34,20 +34,20 @@ func (w *Notifier) Start(ctx context.Context, interval time.Duration) {
 	for {
 		select {
 		case <-ctx.Done():
-			log.WithSource(
-				log.Zap().Desugar(), "notifier").
-				Info("shut down")
+			log.WithSource(log.Zap().Desugar(), "notifier").Info("shut down")
 			return
 		case <-ticker.C:
-			if err := w.checkStands(); err != nil {
-				log.Zap().Warnf("checkStands failed in worker due to %w", err)
+			if err := w.execNotify(); err != nil {
+				log.WithSource(log.Zap().Desugar(), "notifier").
+					Sugar().
+					Errorf("checkStands failed in worker due to %w", err)
 				continue
 			}
 		}
 	}
 }
 
-func (w *Notifier) checkStands() error {
+func (w *Notifier) execNotify() error {
 	stands, err := w.handler.Repo().Stands()
 	if err != nil {
 		return fmt.Errorf("failed to get stands: %w", err)
@@ -64,7 +64,7 @@ func (w *Notifier) checkStands() error {
 	}
 
 	if len(usersToNotify) > 0 {
-		if err := w.notifyFn(telegram.ChatInfo.ChatID, usersToNotify...); err != nil {
+		if err := w.fn(telegram.ChatInfo.ChatID, usersToNotify...); err != nil {
 			return fmt.Errorf("failed to notify users: %w", err)
 		}
 	}

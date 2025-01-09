@@ -2,14 +2,10 @@ package entity
 
 import (
 	"time"
-
-	"gopkg.in/telebot.v4"
 )
 
 type ChatInfo struct {
-	ChatID  int64
-	IsGroup bool
-	Members []telebot.ChatMember
+	ChatID int64
 }
 
 type User struct {
@@ -19,7 +15,7 @@ type User struct {
 
 type Stand struct {
 	Name          string    `db:"name"`
-	Released      bool      `db:"released"`
-	OwnerUsername string    `db:"owner_username"`
-	TimeClaimed   time.Time `db:"time_claimed"`
+	Released      bool      `db:"released,omitempty"`
+	OwnerUsername string    `db:"owner_username,omitempty"`
+	TimeClaimed   time.Time `db:"time_claimed,omitempty"`
 }

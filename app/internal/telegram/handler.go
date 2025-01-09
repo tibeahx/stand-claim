@@ -29,6 +29,29 @@ func NewHandler(b *Bot, repo *repo.Repo) *Handler {
 	}
 }
 
+func (h *Handler) HandleCallbacks(c telebot.Context) error {
+	data := strings.Split(c.Callback().Data, ":")
+	if len(data) != 2 {
+		return c.Respond()
+	}
+
+	action, standName := data[0], data[1]
+
+	c.Message().Payload = standName
+
+	handlers := h.CallbackHandlers()
+
+	if h, ok := handlers["/"+action]; ok {
+		err := h(c)
+		if err != nil {
+			return err
+		}
+		return c.Respond()
+	}
+
+	return c.Respond()
+}
+
 func (h *Handler) Notify(chatID int64) notifierFunc {
 	return func(chatID int64, users ...string) error {
 		if len(users) == 0 {
@@ -63,6 +86,41 @@ func (h *Handler) checkStands(c telebot.Context) ([]entity.Stand, error) {
 	}
 
 	return stands, nil
+}
+
+func (h *Handler) CreateUser(c telebot.Context) error {
+	u := c.ChatMember().NewChatMember.User.Username
+
+	userFound, err := h.repo.FindUser(u)
+	if err != nil {
+		return err
+	}
+
+	if !userFound {
+		h.repo.CreateUser(u)
+	}
+
+	return c.Send("user already exists")
+}
+
+func (h *Handler) DeleteUser(c telebot.Context) error {
+	oldMember := c.ChatMember().OldChatMember
+	u := oldMember.User.Username
+
+	if oldMember.Role != telebot.Administrator {
+		switch oldMember.Role {
+		case telebot.Left, telebot.Kicked, telebot.Restricted:
+			userFound, err := h.repo.FindUser(u)
+			if err != nil {
+				return err
+			}
+			if userFound {
+				h.repo.DeleteUser(u)
+			}
+		}
+	}
+
+	return c.Send("no user found to delete")
 }
 
 func (h *Handler) PingAll(c telebot.Context) error {

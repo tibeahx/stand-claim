@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"os"
 	"os/signal"
-	"strings"
 	"sync"
 	"syscall"
 	"time"
@@ -49,7 +48,7 @@ func main() {
 
 	handler := telegram.NewHandler(bot, repo)
 
-	initCommands(bot, cfg, handler)
+	initHandlers(bot, cfg, handler)
 
 	logger.Info("init cmd handlers...")
 
@@ -66,7 +65,7 @@ func main() {
 
 	go notifier.Start(ctx, notifierCheckInterval)
 
-	logger.Info("init scheduler...")
+	logger.Info("init notifier...")
 
 	bot.Tele().Start()
 
@@ -141,39 +140,22 @@ func initDb(cfg *config.Config) (*sqlx.DB, error) {
 	return db, nil
 }
 
-func initCommands(
+func initHandlers(
 	bot *telegram.Bot,
 	cfg *config.Config,
 	handler *telegram.Handler,
 ) {
 	bot.Tele().Use(telegram.ValidateCmdMiddleware)
-	bot.Tele().Use(telegram.ChatInfoMiddleware(bot))
+	bot.Tele().Use(telegram.ChatInfoMiddleware)
 
-	bot.Tele().Handle(telebot.OnUserJoined, handler.Greetings)
 	bot.Tele().SetCommands(config.TeleCommands)
 
-	bot.Tele().Handle(telebot.OnCallback, func(c telebot.Context) error {
-		data := strings.Split(c.Callback().Data, ":")
-		if len(data) != 2 {
-			return c.Respond()
-		}
+	bot.Tele().Handle(telebot.OnUserJoined, handler.Greetings)
+	bot.Tele().Handle(telebot.OnUserJoined, handler.CreateUser)
+	
+	bot.Tele().Handle(telebot.OnUserLeft, handler.DeleteUser)
 
-		action, standName := data[0], data[1]
-
-		c.Message().Payload = standName
-
-		handlers := handler.CallbackHandlers()
-
-		if h, ok := handlers["/"+action]; ok {
-			err := h(c)
-			if err != nil {
-				return err
-			}
-			return c.Respond()
-		}
-
-		return c.Respond()
-	})
+	bot.Tele().Handle(telebot.OnCallback, handler.HandleCallbacks)
 
 	for command, h := range handler.CallbackHandlers() {
 		bot.Tele().Handle(command, h)

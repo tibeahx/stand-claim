@@ -11,16 +11,13 @@ import (
 
 var ChatInfo = entity.ChatInfo{}
 
-func ChatInfoMiddleware(b *Bot) telebot.MiddlewareFunc {
-	return func(next telebot.HandlerFunc) telebot.HandlerFunc {
-		return func(c telebot.Context) error {
-			if c.Chat().Type == telebot.ChatGroup || c.Chat().Type == telebot.ChatSuperGroup {
-				ChatInfo.ChatID = c.Chat().ID
-				ChatInfo.IsGroup = true
-			}
-			log.Zap().Infof("chat id set to: %d", ChatInfo.ChatID)
-			return next(c)
+func ChatInfoMiddleware(next telebot.HandlerFunc) telebot.HandlerFunc {
+	return func(c telebot.Context) error {
+		if c.Chat().Type == telebot.ChatGroup || c.Chat().Type == telebot.ChatSuperGroup {
+			ChatInfo.ChatID = c.Chat().ID
 		}
+		log.Zap().Infof("chat id set to: %d", ChatInfo.ChatID)
+		return next(c)
 	}
 }
 

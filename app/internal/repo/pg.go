@@ -57,7 +57,6 @@ func (r *Repo) CreateUser(username string) error {
 values
 	(:username, now ()) on conflict (username) do nothing
 	`
-
 	return dbutils.NamedExec(
 		r.db,
 		q,
@@ -109,6 +108,39 @@ func (r *Repo) ReleaseStand(stand entity.Stand) error {
 			"name":           stand.Name,
 		},
 	)
+}
+
+func (r *Repo) FindUser(username string) (bool, error) {
+	const q = `select
+	u.username
+from
+	users u
+	left join stands s on u.username = s.owner_username
+	and s.released = false
+where
+	u.username = :username
+	and
+	u.username is not null
+group by
+	u.username
+having
+	count(s.owner_username) = 0;`
+
+	var usernameFound string
+
+	err := dbutils.NamedGet(
+		r.db,
+		q,
+		&usernameFound,
+		map[string]any{
+			"username": username,
+		},
+	)
+	if err != nil {
+		return false, err
+	}
+
+	return len(usernameFound) != 0, err
 }
 
 func (r *Repo) DeleteUser(username string) error {
