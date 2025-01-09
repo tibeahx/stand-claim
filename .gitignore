@@ -25,6 +25,8 @@
 *.tmp
 *.temp
 
+config/config.yaml``
+
 *.env
 .env
 .env.local
