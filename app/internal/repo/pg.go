@@ -136,9 +136,6 @@ having
 			"username": username,
 		},
 	)
-	if err != nil {
-		return false, err
-	}
 
 	return len(usernameFound) != 0, err
 }

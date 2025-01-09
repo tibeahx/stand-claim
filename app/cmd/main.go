@@ -152,7 +152,7 @@ func initHandlers(
 
 	bot.Tele().Handle(telebot.OnUserJoined, handler.Greetings)
 	bot.Tele().Handle(telebot.OnUserJoined, handler.CreateUser)
-	
+
 	bot.Tele().Handle(telebot.OnUserLeft, handler.DeleteUser)
 
 	bot.Tele().Handle(telebot.OnCallback, handler.HandleCallbacks)
