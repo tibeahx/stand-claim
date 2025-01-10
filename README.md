@@ -35,7 +35,7 @@ Telegram bot for managing dev environments within your team.
     bot:
         stands: [dev1, dev2, staging] # your enviroments 
 ```
-4. Configure fixtures to seed base data in Postgres
+4. Configure fixtures to preseed your stands by name in stands table
 5. Run with docker:
 ```bash
 docker-compose up -d --build
