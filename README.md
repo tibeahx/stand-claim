@@ -32,10 +32,8 @@ Telegram bot for managing dev environments within your team.
         db_name: stands
         sslmode: disable
         use_seed: true
-    bot:
-        stands: [dev1, dev2, staging] # your enviroments 
 ```
-4. Configure fixtures to preseed your stands by name in stands table
+4. Configure fixtures to preseed your stands by name in stands table. See fixtures/stands.yaml for reference.
 5. Run with docker:
 ```bash
 docker-compose up -d --build
