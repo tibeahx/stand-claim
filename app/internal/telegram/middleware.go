@@ -21,6 +21,39 @@ func ChatInfoMiddleware(next telebot.HandlerFunc) telebot.HandlerFunc {
 	}
 }
 
+func UserMiddleware(h *Handler) telebot.MiddlewareFunc {
+	return func(next telebot.HandlerFunc) telebot.HandlerFunc {
+		return func(c telebot.Context) error {
+			u := c.ChatMember().NewChatMember.User.Username
+			userFound, err := h.repo.FindUser(u)
+			if err != nil {
+				return err
+			}
+			if !userFound {
+				h.repo.CreateUser(u)
+				return next(c)
+			}
+
+			oldMember := c.ChatMember().OldChatMember
+			u2 := oldMember.User.Username
+
+			if oldMember.Role != telebot.Administrator {
+				switch oldMember.Role {
+				case telebot.Left, telebot.Kicked, telebot.Restricted:
+					userFound, err := h.repo.FindUser(u2)
+					if err != nil {
+						return err
+					}
+					if userFound {
+						h.repo.DeleteUser(u2)
+					}
+				}
+			}
+			return next(c)
+		}
+	}
+}
+
 func ValidateCmdMiddleware(next telebot.HandlerFunc) telebot.HandlerFunc {
 	return func(c telebot.Context) error {
 		if c.Callback() != nil {

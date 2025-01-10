@@ -71,8 +71,6 @@ func main() {
 
 	logger.Info("bot started...")
 
-	logger.Info("retrived users from chat and populated users table...")
-
 	var wg sync.WaitGroup
 
 	closeCh := make(chan os.Signal, 1)
@@ -83,7 +81,8 @@ func main() {
 	wg.Add(1)
 	go func() {
 		defer wg.Done()
-
+		defer notifier.Stop()
+		
 		<-closeCh
 		cancel()
 
