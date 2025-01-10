@@ -83,10 +83,12 @@ func main() {
 		defer wg.Done()
 
 		<-closeCh
-		cancel()
-
-		bot.Tele().Stop()
+		
 		notifier.Stop()
+		
+		cancel()
+		
+		bot.Tele().Stop()
 		db.Close()
 
 		logger.Info("shutting down...")

@@ -14,6 +14,7 @@ type Notifier struct {
 	fn                      func(chatID int64, users ...string) error
 	standOwnershipThreshold time.Duration
 	stopCh                  chan struct{}
+	doneCh                  chan struct{}
 }
 
 func NewNotifier(
@@ -25,11 +26,14 @@ func NewNotifier(
 		handler:                 handler,
 		fn:                      notifyFn,
 		standOwnershipThreshold: standOwnershipThreshold,
-		stopCh:                  make(chan struct{}),
+		stopCh:                  make(chan struct{}, 1), // Buffer of 1 to prevent blocking
+		doneCh:                  make(chan struct{}),
 	}
 }
 
 func (w *Notifier) Start(ctx context.Context, interval time.Duration) {
+	defer close(w.doneCh)
+
 	ticker := time.NewTicker(interval)
 	defer ticker.Stop()
 
@@ -39,7 +43,7 @@ func (w *Notifier) Start(ctx context.Context, interval time.Duration) {
 			log.WithSource(log.Zap().Desugar(), "notifier").Info("shut down")
 			return
 		case <-w.stopCh:
-			w.Stop()
+			log.WithSource(log.Zap().Desugar(), "notifier").Info("received stop signal")
 			return
 		case <-ticker.C:
 			if err := w.execNotify(); err != nil {
@@ -78,5 +82,7 @@ func (w *Notifier) execNotify() error {
 }
 
 func (w *Notifier) Stop() {
+	w.stopCh <- struct{}{}
 	close(w.stopCh)
+	<-w.doneCh
 }
