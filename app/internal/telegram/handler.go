@@ -1,7 +1,7 @@
 package telegram
 
 import (
-	"errors"
+	"database/sql"
 	"fmt"
 	"strings"
 	"time"
@@ -53,12 +53,10 @@ func (h *Handler) HandleCallbacks(c telebot.Context) error {
 	return c.Respond()
 }
 
-var errNoUsersProvided = errors.New("no users provided")
-
 func (h *Handler) Notify(chatID int64) notifierFunc {
 	return func(chatID int64, users ...string) error {
 		if len(users) == 0 {
-			return errNoUsersProvided
+			return nil
 		}
 
 		mentionsFormatted := make([]string, 0, len(users))
@@ -78,41 +76,6 @@ func (h *Handler) Notify(chatID int64) notifierFunc {
 	}
 }
 
-func (h *Handler) CreateUser(c telebot.Context) error {
-	u := c.ChatMember().NewChatMember.User.Username
-
-	userFound, err := h.repo.FindUser(u)
-	if err != nil {
-		return err
-	}
-
-	if !userFound {
-		h.repo.CreateUser(u)
-	}
-
-	return c.Send("user already exists")
-}
-
-func (h *Handler) DeleteUser(c telebot.Context) error {
-	oldMember := c.ChatMember().OldChatMember
-	u := oldMember.User.Username
-
-	if oldMember.Role != telebot.Administrator {
-		switch oldMember.Role {
-		case telebot.Left, telebot.Kicked, telebot.Restricted:
-			userFound, err := h.repo.FindUser(u)
-			if err != nil {
-				return err
-			}
-			if userFound {
-				h.repo.DeleteUser(u)
-			}
-		}
-	}
-
-	return c.Send("no user found to delete")
-}
-
 func (h *Handler) PingAll(c telebot.Context) error {
 	stands, err := h.checkStands(c)
 	if err != nil {
@@ -128,9 +91,9 @@ func (h *Handler) PingAll(c telebot.Context) error {
 		if stand.Released {
 			continue
 		}
-		if stand.OwnerUsername != "" && stand.Name != "" {
-			mentions[stand.OwnerUsername] = stand.Name
-			parts = append(parts, fmt.Sprintf(TplUserStand, stand.OwnerUsername, stand.Name))
+		if stand.OwnerUsername.String != "" && stand.Name != "" {
+			mentions[stand.OwnerUsername.String] = stand.Name
+			parts = append(parts, fmt.Sprintf(TplUserStand, stand.OwnerUsername.String, stand.Name))
 		}
 	}
 
@@ -152,7 +115,7 @@ func (h *Handler) Ping(c telebot.Context) error {
 		username := c.Message().Payload
 
 		for _, stand := range stands {
-			if stand.OwnerUsername == username && !stand.Released {
+			if stand.OwnerUsername.String == username && !stand.Released {
 				return c.Edit(fmt.Sprintf(TplPingUser, username))
 			}
 		}
@@ -163,15 +126,15 @@ func (h *Handler) Ping(c telebot.Context) error {
 	usersToPing := make(map[string]struct{}, len(stands))
 
 	for _, stand := range stands {
-		if stand.Released || stand.OwnerUsername == "" {
+		if stand.Released || stand.OwnerUsername.String == "" {
 			continue
 		}
 
-		if _, exists := usersToPing[stand.OwnerUsername]; !exists {
-			usersToPing[stand.OwnerUsername] = struct{}{}
+		if _, exists := usersToPing[stand.OwnerUsername.String]; !exists {
+			usersToPing[stand.OwnerUsername.String] = struct{}{}
 			buttons = append(buttons, inlineButton{
-				text: fmt.Sprintf(TplButtonUser, stand.OwnerUsername, stand.Name),
-				data: fmt.Sprintf("ping:%s", stand.OwnerUsername),
+				text: fmt.Sprintf(TplButtonUser, stand.OwnerUsername.String, stand.Name),
+				data: fmt.Sprintf("ping:%s", stand.OwnerUsername.String),
 			})
 		}
 	}
@@ -195,7 +158,7 @@ func (h *Handler) ListStands(c telebot.Context) error {
 	standInfos := make([]string, 0, len(stands))
 
 	for _, stand := range stands {
-		if stand.OwnerUsername == "" || stand.Name == "" {
+		if stand.Name == "" {
 			continue
 		}
 
@@ -227,12 +190,16 @@ func (h *Handler) Claim(c telebot.Context) error {
 		standName := c.Message().Payload
 		senderUsername := c.Callback().Sender.Username
 
+		if err := h.repo.CreateUser(senderUsername); err != nil {
+			return c.Edit(fmt.Sprintf("failed to create user: %v", err))
+		}
+
 		for _, stand := range stands {
 			if stand.Name == standName {
 				if stand.Released {
 					standToClaim := entity.Stand{
 						Name:          standName,
-						OwnerUsername: senderUsername,
+						OwnerUsername: sql.NullString{String: senderUsername, Valid: true},
 					}
 
 					if err := h.repo.ClaimStand(standToClaim); err != nil {
@@ -282,7 +249,7 @@ func (h *Handler) Release(c telebot.Context) error {
 
 		standToRelease := entity.Stand{
 			Name:          standName,
-			OwnerUsername: senderUsername,
+			OwnerUsername: sql.NullString{String: senderUsername},
 		}
 
 		if err := h.repo.ReleaseStand(standToRelease); err != nil {
@@ -296,7 +263,7 @@ func (h *Handler) Release(c telebot.Context) error {
 	senderUsername := c.Sender().Username
 
 	for _, stand := range stands {
-		if stand.Released || stand.Name == "" || stand.OwnerUsername != senderUsername {
+		if stand.Released || stand.Name == "" || stand.OwnerUsername.String != senderUsername {
 			continue
 		}
 
@@ -388,11 +355,20 @@ func createInlineKeyboard(items []inlineButton) [][]telebot.InlineButton {
 
 func formatStandStatus(stand entity.Stand) string {
 	if !stand.Released {
-		timeBusy := time.Since(stand.TimeClaimed)
+		if !stand.TimeClaimed.Valid {
+			return fmt.Sprintf(
+				TplStandBusyBy,
+				stand.OwnerUsername.String,
+				0,
+				EmojiBusy,
+			)
+		}
+
+		timeBusy := time.Since(stand.TimeClaimed.Time)
 
 		return fmt.Sprintf(
 			TplStandBusyBy,
-			stand.OwnerUsername,
+			stand.OwnerUsername.String,
 			int(timeBusy.Hours()),
 			EmojiBusy,
 		)

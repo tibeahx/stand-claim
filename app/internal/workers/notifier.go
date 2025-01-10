@@ -61,9 +61,9 @@ func (w *Notifier) execNotify() error {
 	usersToNotify := make([]string, 0)
 
 	for _, stand := range stands {
-		if !stand.Released && stand.OwnerUsername != "" {
-			if time.Since(stand.TimeClaimed) >= w.standOwnershipThreshold {
-				usersToNotify = append(usersToNotify, stand.OwnerUsername)
+		if !stand.Released && stand.OwnerUsername.String != "" {
+			if time.Since(stand.TimeClaimed.Time) >= w.standOwnershipThreshold {
+				usersToNotify = append(usersToNotify, stand.OwnerUsername.String)
 			}
 		}
 	}

@@ -42,13 +42,6 @@ type BotConfig struct {
 	Verbose     bool              `yaml:"verbose"`
 }
 
-var defaultStands = []string{
-	"dev1",
-	"dev2",
-	"dev3",
-	"dev4",
-}
-
 var defaultCommands = []telebot.Command{
 	{Text: "/claim", Description: "Claim a stand"},
 	{Text: "/release", Description: "Release currently claimed stand"},
@@ -97,10 +90,6 @@ func load(cfgPath string) error {
 	cfg.Bot.Token = os.Getenv(botTokenKey)
 	if cfg.Bot.Token == "" {
 		return errEmptyToken
-	}
-
-	if len(cfg.Bot.Stands) == 0 {
-		cfg.Bot.Stands = defaultStands
 	}
 
 	config = cfg

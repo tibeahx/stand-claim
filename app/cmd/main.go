@@ -81,12 +81,12 @@ func main() {
 	wg.Add(1)
 	go func() {
 		defer wg.Done()
-		defer notifier.Stop()
-		
+
 		<-closeCh
 		cancel()
 
 		bot.Tele().Stop()
+		notifier.Stop()
 		db.Close()
 
 		logger.Info("shutting down...")
@@ -146,13 +146,11 @@ func initHandlers(
 ) {
 	bot.Tele().Use(telegram.ValidateCmdMiddleware)
 	bot.Tele().Use(telegram.ChatInfoMiddleware)
+	bot.Tele().Use(telegram.UserMiddleware(handler))
 
 	bot.Tele().SetCommands(config.TeleCommands)
 
 	bot.Tele().Handle(telebot.OnUserJoined, handler.Greetings)
-	bot.Tele().Handle(telebot.OnUserJoined, handler.CreateUser)
-
-	bot.Tele().Handle(telebot.OnUserLeft, handler.DeleteUser)
 
 	bot.Tele().Handle(telebot.OnCallback, handler.HandleCallbacks)
 

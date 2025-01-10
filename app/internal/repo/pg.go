@@ -22,14 +22,16 @@ func NewRepo(db *sqlx.DB) *Repo {
 func (r *Repo) Stands() ([]entity.Stand, error) {
 	const q = `
 	select
-	name,
-	released,
-	coalesce(owner_username, '') as owner_username,
-	time_claimed
-from
-	stands
-order by
-	name asc
+		name,
+		released,
+		owner_username,
+		time_claimed
+	from
+		stands
+	where
+		name is not null
+	order by
+		name asc
 	`
 
 	var stands []entity.Stand
@@ -82,7 +84,7 @@ func (r *Repo) ClaimStand(stand entity.Stand) error {
 		r.db,
 		q,
 		map[string]any{
-			"owner_username": stand.OwnerUsername,
+			"owner_username": stand.OwnerUsername.String,
 			"name":           stand.Name,
 		},
 	)
@@ -104,40 +106,65 @@ func (r *Repo) ReleaseStand(stand entity.Stand) error {
 		r.db,
 		q,
 		map[string]any{
-			"owner_username": stand.OwnerUsername,
+			"owner_username": stand.OwnerUsername.String,
 			"name":           stand.Name,
 		},
 	)
 }
 
 func (r *Repo) FindUser(username string) (bool, error) {
-	const q = `select
-	u.username
+	const q = `
+		with
+	user_check as (
+		select
+			exists (
+				select
+					1
+				from
+					users
+				where
+					username = :username
+			) as user_exists
+	),
+	claimed_stands as (
+		select
+			count(*) as claimed_count
+		from
+			stands
+		where
+			owner_username = :username
+			and released = false
+	)
+select
+	case
+		when user_check.user_exists = true
+		and claimed_stands.claimed_count = 0 then true
+		else false
+	end as can_claim
 from
-	users u
-	left join stands s on u.username = s.owner_username
-	and s.released = false
-where
-	u.username = :username
-	and
-	u.username is not null
-group by
-	u.username
-having
-	count(s.owner_username) = 0;`
+	user_check,
+	claimed_stands;
+	`
 
-	var usernameFound string
-
+	var canClaim bool
 	err := dbutils.NamedGet(
 		r.db,
 		q,
-		&usernameFound,
+		&canClaim,
 		map[string]any{
 			"username": username,
 		},
 	)
 
-	return len(usernameFound) != 0, err
+	if err == sql.ErrNoRows {
+		return false, nil
+	}
+
+	if err != nil {
+		return false, fmt.Errorf("failed to check user status: %w", err)
+	}
+
+	return canClaim, nil
 }
 
 func (r *Repo) DeleteUser(username string) error {

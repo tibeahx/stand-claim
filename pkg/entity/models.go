@@ -1,6 +1,7 @@
 package entity
 
 import (
+	"database/sql"
 	"time"
 )
 
@@ -14,8 +15,8 @@ type User struct {
 }
 
 type Stand struct {
-	Name          string    `db:"name"`
-	Released      bool      `db:"released,omitempty"`
-	OwnerUsername string    `db:"owner_username,omitempty"`
-	TimeClaimed   time.Time `db:"time_claimed,omitempty"`
+	Name          string         `db:"name"`
+	Released      bool           `db:"released,omitempty"`
+	OwnerUsername sql.NullString `db:"owner_username"`
+	TimeClaimed   sql.NullTime   `db:"time_claimed"`
 }
