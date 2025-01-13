@@ -40,7 +40,7 @@ type PostgresConfig struct {
 type GitlabConfig struct {
 	BaseURL   string `yaml:"base_url"`
 	Token     string `yaml:"token"`
-	ProjectID string `yaml:"project_id"`
+	ProjectID int    `yaml:"project_id"`
 }
 
 type BotConfig struct {

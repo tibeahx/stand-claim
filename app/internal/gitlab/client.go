@@ -3,7 +3,6 @@ package gitlab
 import (
 	"errors"
 	"fmt"
-	"strconv"
 
 	"github.com/tibeahx/claimer/app/internal/config"
 	gitlab "gitlab.com/gitlab-org/api/client-go"
@@ -21,15 +20,10 @@ func NewGitlabClientWrapper(cfg *config.Config) (*GitlabClientWrapper, error) {
 		return nil, fmt.Errorf("failed to init gitlab client due to :%w", err)
 	}
 
-	pid, err := strconv.Atoi(cfg.Gitlab.ProjectID)
-	if err != nil {
-		return nil, err
-	}
-
 	gw := &GitlabClientWrapper{
 		client:    c,
 		token:     cfg.Gitlab.Token,
-		projectID: pid,
+		projectID: cfg.Gitlab.ProjectID,
 	}
 
 	return gw, nil
