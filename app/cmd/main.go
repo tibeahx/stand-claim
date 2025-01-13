@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"os"
 	"os/signal"
-	"sync"
 	"syscall"
 	"time"
 
@@ -72,18 +71,13 @@ func main() {
 
 	logger.Info("bot started...")
 
-	var wg sync.WaitGroup
+	c := make(chan os.Signal, 1)
+	defer close(c)
 
-	closeCh := make(chan os.Signal, 1)
-	defer close(closeCh)
+	signal.Notify(c, syscall.SIGINT, syscall.SIGTERM)
 
-	signal.Notify(closeCh, syscall.SIGINT, syscall.SIGTERM)
-
-	wg.Add(1)
 	go func() {
-		defer wg.Done()
-
-		<-closeCh
+		<-c
 
 		notifier.Stop()
 
@@ -94,8 +88,6 @@ func main() {
 
 		logger.Info("shutting down...")
 	}()
-
-	wg.Wait()
 }
 
 func initDb(cfg *config.Config) (*sqlx.DB, error) {
