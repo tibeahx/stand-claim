@@ -6,6 +6,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/tibeahx/claimer/app/internal/gitlab"
 	"github.com/tibeahx/claimer/app/internal/repo"
 	"github.com/tibeahx/claimer/pkg/entity"
 	"gopkg.in/telebot.v4"
@@ -14,8 +15,9 @@ import (
 type notifierFunc func(chatID int64, users ...string) error
 
 type Handler struct {
-	repo *repo.Repo
-	bot  *Bot
+	repo   *repo.Repo
+	bot    *Bot
+	gitlab *gitlab.GitlabClientWrapper
 }
 
 type inlineButton struct {
@@ -23,10 +25,15 @@ type inlineButton struct {
 	data string
 }
 
-func NewHandler(b *Bot, repo *repo.Repo) *Handler {
+func NewHandler(
+	b *Bot,
+	repo *repo.Repo,
+	gitlab *gitlab.GitlabClientWrapper,
+) *Handler {
 	return &Handler{
-		repo: repo,
-		bot:  b,
+		repo:   repo,
+		bot:    b,
+		gitlab: gitlab,
 	}
 }
 

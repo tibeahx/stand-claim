@@ -12,6 +12,7 @@ import (
 	_ "github.com/jackc/pgx/v5/stdlib"
 	"github.com/jmoiron/sqlx"
 	"github.com/tibeahx/claimer/app/internal/config"
+	"github.com/tibeahx/claimer/app/internal/gitlab"
 	"github.com/tibeahx/claimer/app/internal/repo"
 	"github.com/tibeahx/claimer/app/internal/telegram"
 	"github.com/tibeahx/claimer/app/internal/workers"
@@ -46,7 +47,14 @@ func main() {
 
 	logger.Info("init repo...")
 
-	handler := telegram.NewHandler(bot, repo)
+	gitlab, err := gitlab.NewGitlabClientWrapper(cfg)
+	if err != nil {
+		logger.Fatalf("failed to create gitlab client: %v", err)
+	}
+
+	logger.Info("init gitlab client...")
+
+	handler := telegram.NewHandler(bot, repo, gitlab)
 
 	initHandlers(bot, cfg, handler)
 
