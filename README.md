@@ -24,14 +24,25 @@ Telegram bot for managing dev environments within your team.
 3. Create `config.yaml` with command ```mkdir -p ./config && touch ./config/config.yaml``` and configure the following : 
 ```yaml
     postgres:
-        dsn:
+      dsn:
         host: db
         port: 5432
         user: postgres
         password: postgres
         db_name: stands
         sslmode: disable
-        use_seed: true
+      max_idle_conns: 5
+      max_open_conns: 5
+      use_seed: true
+    bot:
+      commands:
+        /list: "List stands"
+        /claim: "Claim a stand"
+        /release: "Release a stand"
+        /ping: "Ping current stand owner by username"
+        /ping_all : "Ping all owners whos stands are busy now"
+      token: tokenFromENV
+      verbose: true
 ```
 4. Configure fixtures to preseed your stands by name in stands table. See fixtures/stands.yaml for reference.
 5. Run with docker:
