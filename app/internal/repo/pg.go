@@ -21,17 +21,17 @@ func NewRepo(db *sqlx.DB) *Repo {
 
 func (r *Repo) Stands() ([]entity.Stand, error) {
 	const q = `
-	select
-		name,
-		released,
-		owner_username,
-		time_claimed
-	from
-		stands
-	where
-		name is not null
-	order by
-		name asc
+select
+	name,
+	released,
+	owner_username,
+	time_claimed
+from
+	stands
+where
+	name is not null
+order by
+	name asc
 	`
 
 	var stands []entity.Stand
@@ -54,7 +54,7 @@ func (r *Repo) Stands() ([]entity.Stand, error) {
 
 func (r *Repo) CreateUser(username string) error {
 	const q = `
-	insert into
+insert into
 	users (username, created)
 values
 	(:username, now ()) on conflict (username) do nothing
@@ -70,14 +70,14 @@ values
 
 func (r *Repo) ClaimStand(stand entity.Stand) error {
 	const q = `
-	update stands
-	set
-		owner_username = :owner_username,
-		time_claimed = now(),
-		released = false
-	where
-		name = :name
-		and released = true
+update stands
+set
+	owner_username = :owner_username,
+	time_claimed = now (),
+	released = false
+where
+	name = :name
+	and released = true
 	`
 
 	return dbutils.NamedExec(
@@ -92,14 +92,14 @@ func (r *Repo) ClaimStand(stand entity.Stand) error {
 
 func (r *Repo) ReleaseStand(stand entity.Stand) error {
 	const q = `
-	update stands
-	set
-		owner_username = null,
-		released = true
-	where
-		name = :name
-		and released = false
-		and owner_username = :owner_username
+update stands
+set
+	owner_username = null,
+	released = true
+where
+	name = :name
+	and released = false
+	and owner_username = :owner_username
 	`
 
 	return dbutils.NamedExec(
@@ -114,7 +114,7 @@ func (r *Repo) ReleaseStand(stand entity.Stand) error {
 
 func (r *Repo) FindUser(username string) (bool, error) {
 	const q = `
-		with
+with
 	user_check as (
 		select
 			exists (
@@ -169,8 +169,9 @@ from
 
 func (r *Repo) DeleteUser(username string) error {
 	const q = `
-	delete from users
-	where username = :username
+delete from users
+where
+	username = :username
 	`
 
 	return dbutils.NamedExec(

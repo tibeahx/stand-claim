@@ -290,6 +290,10 @@ func (h *Handler) Greetings(c telebot.Context) error {
 	))
 }
 
+func (h *Handler) Stub(c telebot.Context) error {
+	return nil
+}
+
 func (h *Handler) CommandHandlers() map[string]telebot.HandlerFunc {
 	return map[string]telebot.HandlerFunc{
 		"/list":     h.ListStands,

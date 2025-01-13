@@ -1,6 +1,7 @@
 package telegram
 
 import (
+	"errors"
 	"strings"
 
 	"github.com/tibeahx/claimer/app/internal/config"
@@ -21,38 +22,64 @@ func ChatInfoMiddleware(next telebot.HandlerFunc) telebot.HandlerFunc {
 	}
 }
 
-func UserMiddleware(h *Handler) telebot.MiddlewareFunc {
+var (
+	errNoUsersJoined = errors.New("no users joined within event")
+	errNoUsersLeft   = errors.New("no users left within event")
+)
+
+func UserJoinedMiddleware(h *Handler) telebot.MiddlewareFunc {
 	return func(next telebot.HandlerFunc) telebot.HandlerFunc {
 		return func(c telebot.Context) error {
 			msg := c.Message()
-			if msg != nil && msg.UserJoined != nil {
-				username := msg.UserJoined.Username
-				if username != "" {
-					userFound, err := h.repo.FindUser(username)
-					if err != nil {
-						log.Zap().Errorf("failed to find user %s: %v", username, err)
-						return err
-					}
-					if !userFound {
-						if err := h.repo.CreateUser(username); err != nil {
-							log.Zap().Errorf("failed to create user %s: %v", username, err)
-							return err
-						}
-						log.Zap().Infof("user %s created", username)
-					}
-				}
+
+			if msg.UserJoined == nil {
+				return errNoUsersJoined
 			}
 
-			if msg != nil && msg.UserLeft != nil {
-				username := msg.UserLeft.Username
-				if username != "" {
-					if err := h.repo.DeleteUser(username); err != nil {
-						log.Zap().Errorf("failed to delete user %s: %v", username, err)
-						return err
-					}
-					log.Zap().Infof("user %s deleted", username)
-				}
+			username := msg.UserJoined.Username
+
+			userFound, err := h.repo.FindUser(username)
+			if err != nil {
+				return err
 			}
+
+			if !userFound {
+				if err := h.repo.CreateUser(username); err != nil {
+					return err
+				}
+			} else {
+				log.Zap().Infof("user %s already exists", username)
+			}
+
+			return next(c)
+		}
+	}
+}
+
+func UserLeftMiddleware(h *Handler) telebot.MiddlewareFunc {
+	return func(next telebot.HandlerFunc) telebot.HandlerFunc {
+		return func(c telebot.Context) error {
+			msg := c.Message()
+
+			if msg.UserLeft == nil {
+				return errNoUsersLeft
+			}
+
+			username := msg.UserLeft.Username
+
+			userFound, err := h.repo.FindUser(username)
+			if err != nil {
+				return err
+			}
+
+			if userFound {
+				if err := h.repo.DeleteUser(username); err != nil {
+					return err
+				}
+			} else {
+				log.Zap().Info("user not found to be deleted")
+			}
+
 			return next(c)
 		}
 	}

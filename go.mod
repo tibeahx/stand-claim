@@ -4,6 +4,7 @@ go 1.22.5
 
 require (
 	github.com/cockroachdb/errors v1.11.3
+	github.com/go-faster/errors v0.7.1
 	github.com/go-testfixtures/testfixtures/v3 v3.14.0
 	github.com/jackc/pgx/v5 v5.7.2
 	github.com/jmoiron/sqlx v1.4.0

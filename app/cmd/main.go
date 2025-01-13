@@ -18,6 +18,7 @@ import (
 	"github.com/tibeahx/claimer/app/internal/workers"
 	"github.com/tibeahx/claimer/pkg/log"
 	"gopkg.in/telebot.v4"
+	"gopkg.in/telebot.v4/middleware"
 )
 
 const notifierCheckInterval = 5 * time.Hour
@@ -83,11 +84,11 @@ func main() {
 		defer wg.Done()
 
 		<-closeCh
-		
+
 		notifier.Stop()
-		
+
 		cancel()
-		
+
 		bot.Tele().Stop()
 		db.Close()
 
@@ -148,11 +149,21 @@ func initHandlers(
 ) {
 	bot.Tele().Use(telegram.ValidateCmdMiddleware)
 	bot.Tele().Use(telegram.ChatInfoMiddleware)
-	bot.Tele().Use(telegram.UserMiddleware(handler))
+	bot.Tele().Use(middleware.Recover())
 
 	bot.Tele().SetCommands(config.TeleCommands)
 
-	bot.Tele().Handle(telebot.OnUserJoined, handler.Greetings)
+	bot.Tele().Handle(
+		telebot.OnUserJoined,
+		handler.Greetings,
+		telegram.UserJoinedMiddleware(handler),
+	)
+
+	bot.Tele().Handle(
+		telebot.OnUserLeft,
+		handler.Stub,
+		telegram.UserLeftMiddleware(handler),
+	)
 
 	bot.Tele().Handle(telebot.OnCallback, handler.HandleCallbacks)
 
