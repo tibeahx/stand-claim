@@ -12,11 +12,15 @@ import (
 
 var config *Config
 
-const botTokenKey = "BOT_TOKEN"
+const (
+	botTokenKey    = "BOT_TOKEN"
+	gitlabTokenKey = "GITLAB_TOKEN"
+)
 
 type Config struct {
 	Postgres PostgresConfig `yaml:"postgres"`
 	Bot      BotConfig      `yaml:"bot"`
+	Gitlab   GitlabConfig   `yaml:"gitlab"`
 }
 
 type PostgresConfig struct {
@@ -33,7 +37,11 @@ type PostgresConfig struct {
 	UseSeed      bool `yaml:"use_seed"`
 }
 
-var TeleCommands []telebot.Command
+type GitlabConfig struct {
+	BaseURL   string `yaml:"base_url"`
+	Token     string `yaml:"token"`
+	ProjectID string `yaml:"project_id"`
+}
 
 type BotConfig struct {
 	RawCommands map[string]string `yaml:"commands"`
@@ -41,6 +49,8 @@ type BotConfig struct {
 	Token       string            `yaml:"bot_token"`
 	Verbose     bool              `yaml:"verbose"`
 }
+
+var TeleCommands []telebot.Command
 
 var defaultCommands = []telebot.Command{
 	{Text: "/claim", Description: "Claim a stand"},
@@ -87,6 +97,7 @@ func load(cfgPath string) error {
 	}
 
 	cfg.Bot.Token = os.Getenv(botTokenKey)
+	cfg.Gitlab.Token = os.Getenv(gitlabTokenKey)
 
 	if cfg.Bot.Token == "" {
 		return errEmptyToken

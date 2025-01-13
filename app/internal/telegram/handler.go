@@ -283,6 +283,10 @@ func (h *Handler) Release(c telebot.Context) error {
 	})
 }
 
+func (h *Handler) AskMeAboutCurrentReleaseState(c telebot.Context) error {
+	return nil
+}
+
 func (h *Handler) Greetings(c telebot.Context) error {
 	return c.Send(fmt.Sprintf(
 		TplGreetings,
