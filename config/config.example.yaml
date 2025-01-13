@@ -1,0 +1,22 @@
+postgres:
+  dsn:
+    host: db
+    port: 5432
+    user: postgres
+    password: postgres
+    db_name: stands
+    sslmode: disable
+  max_idle_conns: 5
+  max_open_conns: 5
+  use_seed: true
+bot:
+# set custom commands if needed, otherwise default commands will be user
+  commands:
+    /list: "List stands"
+    /claim: "Claim a stand"
+    /release: "Release a stand"
+    /ping: "Ping current stand owner by username"
+    /ping_all : "Ping all owners whos stands are busy now"
+  token: tokenFromENV
+  # set true if debug mode needed for bot
+  verbose: true
