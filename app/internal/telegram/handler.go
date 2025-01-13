@@ -290,6 +290,7 @@ func (h *Handler) Greetings(c telebot.Context) error {
 	))
 }
 
+// workaround for onuserleft event, without it we got npe
 func (h *Handler) Stub(c telebot.Context) error {
 	return nil
 }

@@ -9,6 +9,8 @@ import (
 	"github.com/jmoiron/sqlx"
 )
 
+var errNilDest = errors.New("dest is nil")
+
 func NamedSelect[T any](
 	db *sqlx.DB,
 	query string,
@@ -16,7 +18,7 @@ func NamedSelect[T any](
 	args map[string]any,
 ) error {
 	if dest == nil {
-		return errors.New("dest is nil")
+		return errNilDest
 	}
 	rows, err := db.NamedQuery(query, args)
 	if err != nil {
@@ -42,7 +44,7 @@ func NamedGet[T any](
 	args map[string]any,
 ) error {
 	if dest == nil {
-		return errors.New("dest is nil")
+		return errNilDest
 	}
 	rows, err := db.NamedQuery(query, args)
 	if err != nil {

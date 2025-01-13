@@ -52,30 +52,29 @@ var defaultCommands = []telebot.Command{
 func (c *Config) teleCommandFromRaw() []telebot.Command {
 	result := make([]telebot.Command, 0)
 
-	if len(c.Bot.RawCommands) > 0 {
-		for cmd, desc := range c.Bot.RawCommands {
-			TeleCommands = append(TeleCommands, telebot.Command{
-				Text:        cmd,
-				Description: desc,
-			})
-		}
-		return result
-	} else {
+	if len(c.Bot.RawCommands) == 0 {
 		TeleCommands = defaultCommands
 	}
 
-	return nil
+	for cmd, desc := range c.Bot.RawCommands {
+		TeleCommands = append(TeleCommands, telebot.Command{
+			Text:        cmd,
+			Description: desc,
+		})
+	}
+
+	return result
 }
 
 var errEmptyToken = errors.New("bot token is empty")
 
 func load(cfgPath string) error {
-	var cfg *Config
-
 	cfgFileBytes, err := os.ReadFile(cfgPath)
 	if err != nil {
 		return fmt.Errorf("failed to load cfg due to %w", err)
 	}
+
+	var cfg *Config
 
 	if err := yaml.Unmarshal(cfgFileBytes, &cfg); err != nil {
 		return fmt.Errorf("failed to parse fileBytes due to %w", err)
@@ -88,6 +87,7 @@ func load(cfgPath string) error {
 	}
 
 	cfg.Bot.Token = os.Getenv(botTokenKey)
+
 	if cfg.Bot.Token == "" {
 		return errEmptyToken
 	}
@@ -99,11 +99,13 @@ func load(cfgPath string) error {
 
 func Get() (*Config, error) {
 	cfgPath := "config/config.yaml"
+
 	if config == nil {
 		err := load(cfgPath)
 		if err != nil {
 			return nil, err
 		}
 	}
+
 	return config, nil
 }

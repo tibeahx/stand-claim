@@ -78,15 +78,10 @@ func main() {
 
 	go func() {
 		<-c
-
 		notifier.Stop()
-
 		cancel()
-
 		bot.Tele().Stop()
 		db.Close()
-
-		logger.Info("shutting down...")
 	}()
 }
 
@@ -139,7 +134,6 @@ func initHandlers(
 	cfg *config.Config,
 	handler *telegram.Handler,
 ) {
-	bot.Tele().Use(telegram.ValidateCmdMiddleware)
 	bot.Tele().Use(telegram.ChatInfoMiddleware)
 	bot.Tele().Use(middleware.Recover())
 
