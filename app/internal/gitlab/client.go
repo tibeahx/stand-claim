@@ -37,6 +37,9 @@ func WithProjectID(projectID int) wrapperOptions {
 
 func NewGitlabClientWrapper(cfg *config.Config, opts ...wrapperOptions) (*GitlabClientWrapper, error) {
 	c, err := gitlab.NewClient(cfg.Gitlab.Token, gitlab.WithBaseURL(cfg.Gitlab.BaseURL))
+	if err != nil {
+		return nil, fmt.Errorf("failed to init gitlab client due to :%w", err)
+	}
 
 	gcw := &GitlabClientWrapper{
 		token:  cfg.Gitlab.Token,
@@ -45,10 +48,6 @@ func NewGitlabClientWrapper(cfg *config.Config, opts ...wrapperOptions) (*Gitlab
 
 	for _, opt := range opts {
 		opt(gcw)
-	}
-
-	if err != nil {
-		return nil, fmt.Errorf("failed to init gitlab client due to :%w", err)
 	}
 
 	return gcw, nil
