@@ -38,9 +38,10 @@ type PostgresConfig struct {
 }
 
 type GitlabConfig struct {
-	BaseURL   string `yaml:"base_url"`
+	BaseURL   string `yaml:"url"`
 	Token     string `yaml:"token"`
 	ProjectID int    `yaml:"project_id"`
+	GroupID   int    `yaml:"group_id"`
 }
 
 type BotConfig struct {
@@ -57,8 +58,10 @@ var defaultCommands = []telebot.Command{
 	{Text: "/release", Description: "Release currently claimed stand"},
 	{Text: "/list", Description: "Show all stands"},
 	{Text: "/ping", Description: "Ping current stand owner by username"},
+	{Text: "/test", Description: "just for test"},
 }
 
+// in case we need to set custom commands from config.yaml
 func (c *Config) teleCommandFromRaw() []telebot.Command {
 	result := make([]telebot.Command, 0)
 

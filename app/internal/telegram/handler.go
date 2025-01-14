@@ -6,7 +6,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/tibeahx/claimer/app/internal/gitlab"
+	gitlabwrapper "github.com/tibeahx/claimer/app/internal/gitlab"
 	"github.com/tibeahx/claimer/app/internal/repo"
 	"github.com/tibeahx/claimer/pkg/entity"
 	"gopkg.in/telebot.v4"
@@ -15,9 +15,9 @@ import (
 type notifierFunc func(chatID int64, users ...string) error
 
 type Handler struct {
-	repo   *repo.Repo
-	bot    *Bot
-	gitlab *gitlab.GitlabClientWrapper
+	repo          *repo.Repo
+	bot           *Bot
+	gitlabWrapper *gitlabwrapper.GitlabClientWrapper
 }
 
 type inlineButton struct {
@@ -28,12 +28,12 @@ type inlineButton struct {
 func NewHandler(
 	b *Bot,
 	repo *repo.Repo,
-	gitlab *gitlab.GitlabClientWrapper,
+	gitlabWrapper *gitlabwrapper.GitlabClientWrapper,
 ) *Handler {
 	return &Handler{
-		repo:   repo,
-		bot:    b,
-		gitlab: gitlab,
+		repo:          repo,
+		bot:           b,
+		gitlabWrapper: gitlabWrapper,
 	}
 }
 
@@ -82,6 +82,19 @@ func (h *Handler) Notify(chatID int64) notifierFunc {
 		return err
 	}
 }
+
+// func (h *Handler) Test(c telebot.Context) error {
+// 	opts := &gitlab.ListGroupProjectsOptions{}
+
+// 	res, err := h.gitlabWrapper.ListGroupProjectsWithBranchInfo(opts)
+// 	if err != nil {
+// 		return err
+// 	}
+
+// 	log.Zap().Info(res)
+
+// 	return nil
+// }
 
 func (h *Handler) PingAll(c telebot.Context) error {
 	stands, err := h.checkStands(c)
@@ -311,6 +324,7 @@ func (h *Handler) CommandHandlers() map[string]telebot.HandlerFunc {
 		"/list":     h.ListStands,
 		"/ping":     h.Ping,
 		"/ping_all": h.PingAll,
+		// "/test":     h.Test,
 	}
 }
 

@@ -1,4 +1,4 @@
-package gitlab
+package gitlabwrapper
 
 import (
 	"errors"
@@ -8,54 +8,81 @@ import (
 	gitlab "gitlab.com/gitlab-org/api/client-go"
 )
 
+var (
+	errNoJobs     = errors.New("no jobs found")
+	errNoBranches = errors.New("no branches found")
+	errNoProjects = errors.New("no projects found")
+)
+
+type wrapperOptions func(*GitlabClientWrapper)
+
 type GitlabClientWrapper struct {
 	client    *gitlab.Client
 	token     string
 	projectID int
+	groupID   int
 }
 
-func NewGitlabClientWrapper(cfg *config.Config) (*GitlabClientWrapper, error) {
+func WithGroupID(groupID int) wrapperOptions {
+	return func(gcw *GitlabClientWrapper) {
+		gcw.groupID = groupID
+	}
+}
+
+func WithProjectID(projectID int) wrapperOptions {
+	return func(gcw *GitlabClientWrapper) {
+		gcw.projectID = projectID
+	}
+}
+
+func NewGitlabClientWrapper(cfg *config.Config, opts ...wrapperOptions) (*GitlabClientWrapper, error) {
 	c, err := gitlab.NewClient(cfg.Gitlab.Token, gitlab.WithBaseURL(cfg.Gitlab.BaseURL))
+
+	gcw := &GitlabClientWrapper{
+		token:  cfg.Gitlab.Token,
+		client: c,
+	}
+
+	for _, opt := range opts {
+		opt(gcw)
+	}
+
 	if err != nil {
 		return nil, fmt.Errorf("failed to init gitlab client due to :%w", err)
 	}
 
-	gw := &GitlabClientWrapper{
-		client:    c,
-		token:     cfg.Gitlab.Token,
-		projectID: cfg.Gitlab.ProjectID,
-	}
-
-	return gw, nil
+	return gcw, nil
 }
 
-func (c *GitlabClientWrapper) ListProjectJobs() ([]*gitlab.Job, error) {
-	opts := &gitlab.ListJobsOptions{
-		ListOptions: gitlab.ListOptions{
-			PerPage: 5,
-			Sort:    "desc",
-			OrderBy: "id",
-		},
-	}
-
-	jobs, _, err := c.client.Jobs.ListProjectJobs(
-		c.projectID,
-		opts,
-		gitlab.WithToken(gitlab.AuthType(3), c.token),
-	)
+func (c *GitlabClientWrapper) ListProjectJobs(opts *gitlab.ListJobsOptions) ([]*gitlab.Job, error) {
+	jobs, _, err := c.client.Jobs.ListProjectJobs(c.projectID, opts)
 	if err != nil {
 		return nil, fmt.Errorf("failed to list project jobs due to: %w", err)
 	}
 
 	if jobs == nil {
-		return nil, errors.New("no jobs found")
+		return nil, errNoJobs
 	}
 
 	return jobs, nil
 }
 
-func (c *GitlabClientWrapper) ListRepoBranches() ([]*gitlab.Branch, error) {
-	opts := &gitlab.ListBranchesOptions{
+type BranchInfo struct {
+	Name   string
+	Commit *gitlab.Commit
+}
+
+func (c *GitlabClientWrapper) ListGroupProjectsWithBranchInfo(opts *gitlab.ListGroupProjectsOptions) (map[string][]BranchInfo, error) {
+	projects, _, err := c.client.Groups.ListGroupProjects(c.groupID, opts)
+	if err != nil {
+		return nil, err
+	}
+
+	if projects == nil {
+		return nil, errNoProjects
+	}
+
+	biOpts := &gitlab.ListBranchesOptions{
 		ListOptions: gitlab.ListOptions{
 			PerPage: 50,
 			Sort:    "desc",
@@ -63,18 +90,53 @@ func (c *GitlabClientWrapper) ListRepoBranches() ([]*gitlab.Branch, error) {
 		},
 	}
 
-	branches, _, err := c.client.Branches.ListBranches(
-		c.projectID,
-		opts,
-		gitlab.WithToken(gitlab.AuthType(3), c.token),
-	)
+	result := make(map[string][]BranchInfo)
+
+	for _, project := range projects {
+		if project.Archived || project.Visibility == gitlab.PrivateVisibility {
+			continue
+		}
+
+		bi, err := c.ListRepoBranches(biOpts)
+		if err != nil {
+			return nil, err
+		}
+
+		result[project.Name] = bi
+	}
+
+	return result, nil
+}
+
+func (c *GitlabClientWrapper) ListRepoBranches(opts *gitlab.ListBranchesOptions) ([]BranchInfo, error) {
+	branches, _, err := c.client.Branches.ListBranches(c.projectID, opts)
 	if err != nil {
-		return nil, fmt.Errorf("failed to list repo branches due to: %w", err)
+		return nil, err
 	}
 
 	if branches == nil {
-		return nil, errors.New("no branches found")
+		return nil, errNoBranches
 	}
 
-	return branches, nil
+	result := make([]BranchInfo, len(branches))
+
+	for i, branch := range branches {
+		if branch.Name == "" || branch.Commit == nil {
+			continue
+		}
+		result[i] = BranchInfo{
+			Name:   branch.Name,
+			Commit: branch.Commit,
+		}
+	}
+
+	return result, nil
 }
+
+// нужно из группы достать все проекты, затем у этих проектов достать все бранчи, чтобы получилось в итоге  проект: имяБранча: коммит
+// func (c *GitlabClientWrapper) ListGroupBranches(opts *gitlab.ListBranchesOptions)
+
+// главное - дернуть ручку бота, которая покажет кто из пользователей на каком стенде какую ветку держит
+// для этого надо пойти в гитлаб, дернуть получение всех веток
+// далее для каждой ветки распарсить овнера данной ветки
+// пока что так
