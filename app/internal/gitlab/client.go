@@ -68,11 +68,11 @@ func (c *GitlabClientWrapper) ListProjectJobs(opts *gitlab.ListJobsOptions) ([]*
 }
 
 type BranchInfo struct {
-	Name   string
-	Commit *gitlab.Commit
+	Name    string
+	Commits []*gitlab.Commit
 }
 
-func (c *GitlabClientWrapper) ListGroupProjectsWithBranchInfo(opts *gitlab.ListGroupProjectsOptions) (map[string][]BranchInfo, error) {
+func (c *GitlabClientWrapper) ListGroupProjectsWithBranchInfo(opts *gitlab.ListGroupProjectsOptions) (map[string]BranchInfo, error) {
 	projects, _, err := c.client.Groups.ListGroupProjects(c.groupID, opts)
 	if err != nil {
 		return nil, err
@@ -90,7 +90,7 @@ func (c *GitlabClientWrapper) ListGroupProjectsWithBranchInfo(opts *gitlab.ListG
 		},
 	}
 
-	result := make(map[string][]BranchInfo)
+	result := make(map[string]BranchInfo)
 
 	for _, project := range projects {
 		if project.Archived || project.Visibility == gitlab.PrivateVisibility {
@@ -102,7 +102,13 @@ func (c *GitlabClientWrapper) ListGroupProjectsWithBranchInfo(opts *gitlab.ListG
 			return nil, err
 		}
 
-		result[project.Name] = bi
+		for _, b := range bi {
+			branchInfo := BranchInfo{
+				Name: b.Name,
+			}
+			branchInfo.Commits = append(branchInfo.Commits, b.Commits...)
+			result[project.Name] = branchInfo
+		}
 	}
 
 	return result, nil
@@ -125,18 +131,38 @@ func (c *GitlabClientWrapper) ListRepoBranches(opts *gitlab.ListBranchesOptions)
 			continue
 		}
 		result[i] = BranchInfo{
-			Name:   branch.Name,
-			Commit: branch.Commit,
+			Name: branch.Name,
 		}
+		result[i].Commits = append(result[i].Commits, branch.Commit)
 	}
 
 	return result, nil
 }
 
-// нужно из группы достать все проекты, затем у этих проектов достать все бранчи, чтобы получилось в итоге  проект: имяБранча: коммит
-// func (c *GitlabClientWrapper) ListGroupBranches(opts *gitlab.ListBranchesOptions)
+func (c *GitlabClientWrapper) CommitsFromBranch(branchName string) ([]*gitlab.Commit, error) {
+	commits, _, err := c.client.Commits.ListCommits(c.projectID, &gitlab.ListCommitsOptions{
+		RefName: &branchName,
+	})
+	if err != nil {
+		return nil, err
+	}
 
-// главное - дернуть ручку бота, которая покажет кто из пользователей на каком стенде какую ветку держит
-// для этого надо пойти в гитлаб, дернуть получение всех веток
-// далее для каждой ветки распарсить овнера данной ветки
-// пока что так
+	return commits, nil
+}
+
+func (c *GitlabClientWrapper) PipelinesFromProject(branchName string) ([]*gitlab.PipelineInfo, error) {
+	pipelines, _, err := c.client.Pipelines.ListProjectPipelines(c.projectID, &gitlab.ListProjectPipelinesOptions{
+		Ref: &branchName,
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	return pipelines, nil
+}
+
+// стенд - это ветка, например дев стенд это и есть дев ветка
+// значит нужно проверить, какие есть ветки в проекте
+// затем зайти в пайплайн дева и стеджа
+// затем найти там джобы с названиями веток с фичами
+// если джобы завершены, ветки влиты в дев или стейдж

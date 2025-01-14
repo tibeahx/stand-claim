@@ -11,14 +11,6 @@ postgres:
   use_seed: true
   
 bot:
-# set custom commands if needed, otherwise default commands will be user
-  commands:
-    /list: "List stands"
-    /claim: "Claim a stand"
-    /release: "Release a stand"
-    /ping: "Ping current stand owner by username"
-    /ping_all : "Ping all owners whos stands are busy now"
-  token: tokenFromENV
   # set true if debug mode needed for bot
   verbose: true
 
@@ -26,3 +18,4 @@ gitlab:
   token: tokenFromEnv
   url: https://gitlab.com
   project_id: 12345678
+  group_id: 00123
