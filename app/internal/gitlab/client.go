@@ -72,22 +72,24 @@ type BranchInfo struct {
 	Commits []*gitlab.Commit
 }
 
-func (c *GitlabClientWrapper) ListGroupProjectsWithBranchInfo(opts *gitlab.ListGroupProjectsOptions) (map[string]BranchInfo, error) {
-	projects, _, err := c.client.Groups.ListGroupProjects(c.groupID, opts)
+func (c *GitlabClientWrapper) ListGroupProjectsWithBranchInfo(
+	perPage int,
+	orderBy string,
+	sort string,
+) (map[string]BranchInfo, error) {
+	projects, _, err := c.client.Groups.ListGroupProjects(c.groupID, &gitlab.ListGroupProjectsOptions{
+		ListOptions: gitlab.ListOptions{
+			PerPage: perPage,
+			OrderBy: orderBy,
+			Sort:    sort,
+		},
+	})
 	if err != nil {
 		return nil, err
 	}
 
 	if projects == nil {
 		return nil, errNoProjects
-	}
-
-	biOpts := &gitlab.ListBranchesOptions{
-		ListOptions: gitlab.ListOptions{
-			PerPage: 50,
-			Sort:    "desc",
-			OrderBy: "name",
-		},
 	}
 
 	result := make(map[string]BranchInfo)
@@ -97,7 +99,7 @@ func (c *GitlabClientWrapper) ListGroupProjectsWithBranchInfo(opts *gitlab.ListG
 			continue
 		}
 
-		bi, err := c.ListRepoBranches(biOpts)
+		bi, err := c.ListRepoBranches(50, "name", "desc")
 		if err != nil {
 			return nil, err
 		}
@@ -114,8 +116,18 @@ func (c *GitlabClientWrapper) ListGroupProjectsWithBranchInfo(opts *gitlab.ListG
 	return result, nil
 }
 
-func (c *GitlabClientWrapper) ListRepoBranches(opts *gitlab.ListBranchesOptions) ([]BranchInfo, error) {
-	branches, _, err := c.client.Branches.ListBranches(c.projectID, opts)
+func (c *GitlabClientWrapper) ListRepoBranches(
+	perPage int,
+	orderBy string,
+	sort string,
+) ([]BranchInfo, error) {
+	branches, _, err := c.client.Branches.ListBranches(c.projectID, &gitlab.ListBranchesOptions{
+		ListOptions: gitlab.ListOptions{
+			PerPage: perPage,
+			OrderBy: orderBy,
+			Sort:    sort,
+		},
+	})
 	if err != nil {
 		return nil, err
 	}
@@ -150,9 +162,10 @@ func (c *GitlabClientWrapper) CommitsFromBranch(branchName string) ([]*gitlab.Co
 	return commits, nil
 }
 
-func (c *GitlabClientWrapper) PipelinesFromProject(branchName string) ([]*gitlab.PipelineInfo, error) {
+func (c *GitlabClientWrapper) PipelinesFromProject(branchName string, username string) ([]*gitlab.PipelineInfo, error) {
 	pipelines, _, err := c.client.Pipelines.ListProjectPipelines(c.projectID, &gitlab.ListProjectPipelinesOptions{
-		Ref: &branchName,
+		Ref:      &branchName,
+		Username: &username,
 	})
 	if err != nil {
 		return nil, err
