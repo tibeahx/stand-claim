@@ -1,16 +1,18 @@
 package gitlabwrapper
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"slices"
+	"sync"
+	"time"
 
 	"github.com/tibeahx/claimer/app/internal/config"
 	gitlab "gitlab.com/gitlab-org/api/client-go"
 )
 
 var (
-	errInvalidBranchState   = errors.New("invalid branch state")
 	errMrIsntMergedInTarget = errors.New("mr isn't merged in target")
 	errMrIsntApproved       = errors.New("mr isn't approved")
 )
@@ -19,6 +21,7 @@ type wrapperOptions func(*GitlabClientWrapper)
 
 type GitlabClientWrapper struct {
 	client    *gitlab.Client
+	mu        sync.RWMutex
 	token     string
 	projectID int
 	groupID   int
@@ -62,7 +65,11 @@ const (
 	stateMerged        FeatureState = "in %s"
 )
 
-func (c *GitlabClientWrapper) GetFeaturesWithState(envBranches []string) (map[string]FeatureState, error) {
+func (c *GitlabClientWrapper) GetFeaturesWithStateAsync(envBranches []string) (map[string]FeatureState, error) {
+
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+
 	branches, err := c.getBranches(envBranches...)
 	if err != nil {
 		return nil, err
@@ -70,35 +77,68 @@ func (c *GitlabClientWrapper) GetFeaturesWithState(envBranches []string) (map[st
 
 	states := make(map[string]FeatureState, len(branches))
 
+	var wg sync.WaitGroup
 	for _, branch := range branches {
-		mergedTargets := 0
-		var lastMergedTarget string
+		wg.Add(1)
 
-		for _, target := range envBranches {
+		go func(branch *gitlab.Branch) {
+			defer wg.Done()
+
+			select {
+			case <-ctx.Done():
+				return
+			default:
+				state := c.determineBranchStateAsync(branch, envBranches)
+				c.mu.Lock()
+				states[branch.Name] = state
+				c.mu.Unlock()
+			}
+		}(branch)
+	}
+
+	wg.Wait()
+
+	return states, nil
+}
+
+func (c *GitlabClientWrapper) determineBranchStateAsync(branch *gitlab.Branch, envBranches []string) FeatureState {
+	mergedTargets := 0
+	var lastMergedTarget string
+
+	var wg sync.WaitGroup
+	for _, target := range envBranches {
+		wg.Add(1)
+
+		go func(target string) {
+			defer wg.Done()
+
 			merged, err := c.isBranchMergedIntoTarget(branch.Name, target)
 			if err != nil {
 				if errors.Is(err, errMrIsntApproved) || errors.Is(err, errMrIsntMergedInTarget) {
-					continue
+					return
 				}
-				return nil, err
+				return
 			}
+
 			if merged {
+				c.mu.Lock()
 				mergedTargets++
 				lastMergedTarget = target
+				c.mu.Unlock()
 			}
-		}
-
-		switch {
-		case mergedTargets == 0:
-			states[branch.Name] = stateInDevelopment
-		case mergedTargets == len(envBranches):
-			states[branch.Name] = stateInProduction
-		case mergedTargets > 0:
-			states[branch.Name] = FeatureState(fmt.Sprintf(string(stateMerged), lastMergedTarget))
-		}
+		}(target)
 	}
 
-	return states, nil
+	wg.Wait()
+
+	switch {
+	case mergedTargets == 0:
+		return stateInDevelopment
+	case mergedTargets == len(envBranches):
+		return stateInProduction
+	default:
+		return FeatureState(fmt.Sprintf(string(stateMerged), lastMergedTarget))
+	}
 }
 
 func (c *GitlabClientWrapper) getBranches(exceptions ...string) ([]*gitlab.Branch, error) {
@@ -144,10 +184,6 @@ func (c *GitlabClientWrapper) isBranchMergedIntoTarget(sourceBranch string, targ
 		return false, err
 	}
 
-	if !c.isBranchMerged(branch, branch.Name) {
-		return false, errInvalidBranchState
-	}
-
 	mrs, err := c.getMRs(branch.Name)
 	if err != nil {
 		return false, err
@@ -188,8 +224,4 @@ func (c *GitlabClientWrapper) isMrMergedInTarget(mrs []*gitlab.MergeRequest, tar
 
 func (c *GitlabClientWrapper) isMrApproved(mr *gitlab.MergeRequest) bool {
 	return mr.State == "approved"
-}
-
-func (c *GitlabClientWrapper) isBranchMerged(b *gitlab.Branch, sourceBranch string) bool {
-	return b.Merged && b.Name == sourceBranch
 }

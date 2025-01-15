@@ -296,12 +296,12 @@ func (h *Handler) FeaturesState(c telebot.Context) error {
 		return err
 	}
 
-	enviroments := make([]string, 0, len(stands))
+	environments := make([]string, 0, len(stands))
 	for _, stand := range stands {
-		enviroments = append(enviroments, stand.Name)
+		environments = append(environments, stand.Name)
 	}
 
-	states, err := h.gitlabWrapper.GetFeaturesWithState(enviroments)
+	states, err := h.gitlabWrapper.GetFeaturesWithStateAsync(environments)
 	if err != nil {
 		return c.Reply(fmt.Sprintf("failed to get features state: %v", err))
 	}
