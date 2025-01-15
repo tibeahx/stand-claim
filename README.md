@@ -44,6 +44,11 @@ Telegram bot for managing dev environments within your team.
         /ping_all : "Ping all owners whos stands are busy now"
       token: tokenFromENV
       verbose: true
+    gitlab:
+      token: tokenFromEnv
+      url: https://gitlab.com
+      project_id: 12345678
+      group_id: 00123
 ```
 4. Configure fixtures to preseed your stands by name in stands table. See fixtures/stands.yaml for reference.
 5. Run with docker:
