@@ -35,9 +35,11 @@ Telegram bot for managing dev environments within your team.
       max_idle_conns: 5
       max_open_conns: 5
       use_seed: true
+
     bot:
       token: tokenFromENV
       verbose: true
+
     gitlab:
       token: tokenFromEnv
       url: https://gitlab.com
