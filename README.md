@@ -16,6 +16,7 @@ Telegram bot for managing dev environments within your team.
 - `/release` - Release your stand
 - `/ping` - Ping specific stand owner
 - `/ping_all` - Ping all users with busy stands
+- `/features_statuses` - Show current features statuses
 
 ## Quick Start
 
