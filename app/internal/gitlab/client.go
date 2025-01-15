@@ -74,7 +74,7 @@ func (c *GitlabClientWrapper) GetFeaturesWithState(envBranches []string) (map[st
 		mergedTargets := 0
 		var lastMergedTarget string
 
-		for _, target := range envBranches { // Use the same envBranches as targets
+		for _, target := range envBranches {
 			merged, err := c.isBranchMergedIntoTarget(branch.Name, target)
 			if err != nil {
 				if errors.Is(err, errMrIsntApproved) || errors.Is(err, errMrIsntMergedInTarget) {
