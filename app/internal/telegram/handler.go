@@ -297,6 +297,8 @@ func (h *Handler) FeaturesState(c telebot.Context) error {
 	}
 
 	environments := make([]string, 0, len(stands))
+	environments = append(environments, "master")
+	environments = append(environments, "main")
 	for _, stand := range stands {
 		environments = append(environments, stand.Name)
 	}

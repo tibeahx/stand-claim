@@ -60,13 +60,12 @@ func NewGitlabClientWrapper(cfg *config.Config, opts ...wrapperOptions) (*Gitlab
 type FeatureState string
 
 const (
-	stateInDevelopment FeatureState = "in development"
-	stateInProduction  FeatureState = "in production"
-	stateMerged        FeatureState = "in %s"
+	stateInDevelopment FeatureState = "🔨in development"
+	stateInProduction  FeatureState = "💸in production"
+	stateMerged        FeatureState = "🚧in %s"
 )
 
 func (c *GitlabClientWrapper) GetFeaturesWithStateAsync(envBranches []string) (map[string]FeatureState, error) {
-
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
 
@@ -95,7 +94,6 @@ func (c *GitlabClientWrapper) GetFeaturesWithStateAsync(envBranches []string) (m
 			}
 		}(branch)
 	}
-
 	wg.Wait()
 
 	return states, nil
@@ -103,7 +101,7 @@ func (c *GitlabClientWrapper) GetFeaturesWithStateAsync(envBranches []string) (m
 
 func (c *GitlabClientWrapper) determineBranchStateAsync(branch *gitlab.Branch, envBranches []string) FeatureState {
 	mergedTargets := 0
-	var lastMergedTarget string
+	lastMergedTarget := ""
 
 	var wg sync.WaitGroup
 	for _, target := range envBranches {

@@ -1,9 +1,3 @@
-- name: "dev1"
+- name: "dev"
 
-- name: "dev2"
-
-- name: "dev3"
-
-- name: "dev4"
-
-- name: "stage"
+- name: "release-stage"
