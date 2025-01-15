@@ -36,12 +36,6 @@ Telegram bot for managing dev environments within your team.
       max_open_conns: 5
       use_seed: true
     bot:
-      commands:
-        /list: "List stands"
-        /claim: "Claim a stand"
-        /release: "Release a stand"
-        /ping: "Ping current stand owner by username"
-        /ping_all : "Ping all owners whos stands are busy now"
       token: tokenFromENV
       verbose: true
     gitlab:
