@@ -1,6 +1,7 @@
 package telegram
 
 import (
+	"context"
 	"database/sql"
 	"fmt"
 	"strings"
@@ -13,6 +14,8 @@ import (
 )
 
 type notifierFunc func(chatID int64, users ...string) error
+
+const ctxTimeout = 2 * time.Second
 
 type Handler struct {
 	repo          *repo.Repo
@@ -303,7 +306,10 @@ func (h *Handler) FeaturesState(c telebot.Context) error {
 		environments = append(environments, stand.Name)
 	}
 
-	states, err := h.gitlabWrapper.GetFeaturesWithStateAsync(environments)
+	ctx, cancel := context.WithTimeout(context.Background(), ctxTimeout)
+	defer cancel()
+
+	states, err := h.gitlabWrapper.GetFeaturesWithStateAsync(ctx, environments)
 	if err != nil {
 		return c.Reply(fmt.Sprintf("failed to get features state: %v", err))
 	}

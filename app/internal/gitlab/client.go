@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"slices"
 	"sync"
-	"time"
 
 	"github.com/tibeahx/claimer/app/internal/config"
 	gitlab "gitlab.com/gitlab-org/api/client-go"
@@ -65,10 +64,7 @@ const (
 	stateMerged        FeatureState = "🚧in %s"
 )
 
-func (c *GitlabClientWrapper) GetFeaturesWithStateAsync(envBranches []string) (map[string]FeatureState, error) {
-	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
-	defer cancel()
-
+func (c *GitlabClientWrapper) GetFeaturesWithStateAsync(ctx context.Context, envBranches []string) (map[string]FeatureState, error) {
 	branches, err := c.getBranches(envBranches...)
 	if err != nil {
 		return nil, err
