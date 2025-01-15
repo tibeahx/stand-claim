@@ -21,7 +21,7 @@ Telegram bot for managing dev environments within your team.
 ## Quick Start
 
 1. Clone the repository
-2. Create `.env` file with command ```touch .env``` and configure as it shown in example: ```BOT_TOKEN=your_telegram_bot_token ```
+2. Create `.env` file with command ```touch .env``` and configure as it shown in example
 3. Create `config.yaml` with command ```mkdir -p ./config && touch ./config/config.yaml``` and configure the following : 
 ```yaml
     postgres:
