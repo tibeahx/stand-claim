@@ -3,15 +3,16 @@ package gitlabwrapper
 import (
 	"errors"
 	"fmt"
+	"slices"
 
 	"github.com/tibeahx/claimer/app/internal/config"
 	gitlab "gitlab.com/gitlab-org/api/client-go"
 )
 
 var (
-	errNoJobs     = errors.New("no jobs found")
-	errNoBranches = errors.New("no branches found")
-	errNoProjects = errors.New("no projects found")
+	errInvalidBranchState   = errors.New("invalid branch state")
+	errMrIsntMergedInTarget = errors.New("mr isn't merged in target")
+	errMrIsntApproved       = errors.New("mr isn't approved")
 )
 
 type wrapperOptions func(*GitlabClientWrapper)
@@ -53,128 +54,146 @@ func NewGitlabClientWrapper(cfg *config.Config, opts ...wrapperOptions) (*Gitlab
 	return gcw, nil
 }
 
-func (c *GitlabClientWrapper) ListProjectJobs(opts *gitlab.ListJobsOptions) ([]*gitlab.Job, error) {
-	jobs, _, err := c.client.Jobs.ListProjectJobs(c.projectID, opts)
-	if err != nil {
-		return nil, fmt.Errorf("failed to list project jobs due to: %w", err)
-	}
+type FeatureState string
 
-	if jobs == nil {
-		return nil, errNoJobs
-	}
+const (
+	stateInDevelopment FeatureState = "in development"
+	stateInProduction  FeatureState = "in production"
+	stateMerged        FeatureState = "in %s"
+)
 
-	return jobs, nil
-}
-
-type BranchInfo struct {
-	Name    string
-	Commits []*gitlab.Commit
-}
-
-func (c *GitlabClientWrapper) ListGroupProjectsWithBranchInfo(
-	perPage int,
-	orderBy string,
-	sort string,
-) (map[string]BranchInfo, error) {
-	projects, _, err := c.client.Groups.ListGroupProjects(c.groupID, &gitlab.ListGroupProjectsOptions{
-		ListOptions: gitlab.ListOptions{
-			PerPage: perPage,
-			OrderBy: orderBy,
-			Sort:    sort,
-		},
-	})
+func (c *GitlabClientWrapper) GetFeatureState(targetBranches []string, exceptions ...string) (map[string]FeatureState, error) {
+	branches, err := c.getBranches(exceptions...)
 	if err != nil {
 		return nil, err
 	}
 
-	if projects == nil {
-		return nil, errNoProjects
-	}
+	states := make(map[string]FeatureState, len(branches))
 
-	result := make(map[string]BranchInfo)
+	for _, branch := range branches {
+		states[branch.Name] = stateInDevelopment
 
-	for _, project := range projects {
-		if project.Archived || project.Visibility == gitlab.PrivateVisibility {
-			continue
-		}
-
-		bi, err := c.ListRepoBranches(50, "name", "desc")
-		if err != nil {
-			return nil, err
-		}
-
-		for _, b := range bi {
-			branchInfo := BranchInfo{
-				Name: b.Name,
+		for _, target := range targetBranches {
+			merged, err := c.isBranchMergedIntoTarget(branch.Name, target)
+			if err != nil {
+				if errors.Is(err, errMrIsntApproved) || errors.Is(err, errMrIsntMergedInTarget) {
+					continue
+				}
+				return nil, err
 			}
-			branchInfo.Commits = append(branchInfo.Commits, b.Commits...)
-			result[project.Name] = branchInfo
+			if merged {
+				states[branch.Name] = FeatureState(fmt.Sprintf(string(stateMerged), target))
+				break
+			}
+		}
+
+		allMerged := true
+
+		for _, target := range targetBranches {
+			merged, err := c.isBranchMergedIntoTarget(branch.Name, target)
+			if err != nil || !merged {
+				allMerged = false
+				break
+			}
+		}
+
+		if allMerged {
+			states[branch.Name] = stateInProduction
 		}
 	}
 
-	return result, nil
+	return states, nil
 }
 
-func (c *GitlabClientWrapper) ListRepoBranches(
-	perPage int,
-	orderBy string,
-	sort string,
-) ([]BranchInfo, error) {
-	branches, _, err := c.client.Branches.ListBranches(c.projectID, &gitlab.ListBranchesOptions{
-		ListOptions: gitlab.ListOptions{
-			PerPage: perPage,
-			OrderBy: orderBy,
-			Sort:    sort,
-		},
-	})
+func (c *GitlabClientWrapper) getBranches(exceptions ...string) ([]*gitlab.Branch, error) {
+	branches, _, err := c.client.Branches.ListBranches(c.projectID, &gitlab.ListBranchesOptions{})
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to get branches due to :%w", err)
 	}
 
-	if branches == nil {
-		return nil, errNoBranches
-	}
-
-	result := make([]BranchInfo, len(branches))
+	filteredBranches := make([]*gitlab.Branch, len(branches))
 
 	for i, branch := range branches {
-		if branch.Name == "" || branch.Commit == nil {
+		if slices.Contains(exceptions, branch.Name) {
 			continue
 		}
-		result[i] = BranchInfo{
-			Name: branch.Name,
+		filteredBranches[i] = &gitlab.Branch{
+			Name:               branch.Name,
+			Commit:             branch.Commit,
+			Merged:             branch.Merged,
+			Protected:          branch.Protected,
+			Default:            branch.Default,
+			DevelopersCanPush:  branch.DevelopersCanPush,
+			DevelopersCanMerge: branch.DevelopersCanMerge,
+			CanPush:            branch.CanPush,
+			WebURL:             branch.WebURL,
 		}
-		result[i].Commits = append(result[i].Commits, branch.Commit)
 	}
 
-	return result, nil
+	return filteredBranches, nil
 }
 
-func (c *GitlabClientWrapper) CommitsFromBranch(branchName string) ([]*gitlab.Commit, error) {
-	commits, _, err := c.client.Commits.ListCommits(c.projectID, &gitlab.ListCommitsOptions{
-		RefName: &branchName,
+func (c *GitlabClientWrapper) getBranch(branchName string) (*gitlab.Branch, error) {
+	branch, _, err := c.client.Branches.GetBranch(c.projectID, branchName)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get branch due to :%w", err)
+	}
+
+	return branch, nil
+}
+
+func (c *GitlabClientWrapper) isBranchMergedIntoTarget(sourceBranch string, targetBranch string) (bool, error) {
+	branch, err := c.getBranch(sourceBranch)
+	if err != nil {
+		return false, err
+	}
+
+	if !c.isBranchMerged(branch, branch.Name) {
+		return false, errInvalidBranchState
+	}
+
+	mrs, err := c.getMRs(branch.Name)
+	if err != nil {
+		return false, err
+	}
+
+	if !c.isMrMergedInTarget(mrs, targetBranch) {
+		return false, errMrIsntMergedInTarget
+	}
+
+	for _, mr := range mrs {
+		if c.isMrApproved(mr) {
+			return true, nil
+		}
+	}
+
+	return false, errMrIsntApproved
+}
+
+func (c *GitlabClientWrapper) getMRs(sourceBranch string) ([]*gitlab.MergeRequest, error) {
+	mrs, _, err := c.client.MergeRequests.ListMergeRequests(&gitlab.ListMergeRequestsOptions{
+		SourceBranch: &sourceBranch,
 	})
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to get mrs due to :%w", err)
 	}
 
-	return commits, nil
+	return mrs, nil
 }
 
-func (c *GitlabClientWrapper) PipelinesFromProject(branchName string, username string) ([]*gitlab.PipelineInfo, error) {
-	pipelines, _, err := c.client.Pipelines.ListProjectPipelines(c.projectID, &gitlab.ListProjectPipelinesOptions{
-		Ref:      &branchName,
-		Username: &username,
-	})
-	if err != nil {
-		return nil, err
+func (c *GitlabClientWrapper) isMrMergedInTarget(mrs []*gitlab.MergeRequest, targetBranch string) bool {
+	for _, mr := range mrs {
+		if mr.TargetBranch == targetBranch && mr.State == "merged" {
+			return true
+		}
 	}
-
-	return pipelines, nil
+	return false
 }
 
-// стенд - это ветка, например дев стенд это и есть дев ветка
-// значит нужно проверить, какие есть ветки в проекте
-// затем зайти в пайплайн дева и стеджа
-// затем найти там джобы с названиями веток с фичами
-// если джобы завершены, ветки влиты в дев или стейдж
+func (c *GitlabClientWrapper) isMrApproved(mr *gitlab.MergeRequest) bool {
+	return mr.State == "approved"
+}
+
+func (c *GitlabClientWrapper) isBranchMerged(b *gitlab.Branch, sourceBranch string) bool {
+	return b.Merged && b.Name == sourceBranch
+}

@@ -83,19 +83,6 @@ func (h *Handler) Notify(chatID int64) notifierFunc {
 	}
 }
 
-// func (h *Handler) Test(c telebot.Context) error {
-// 	opts := &gitlab.ListGroupProjectsOptions{}
-
-// 	res, err := h.gitlabWrapper.ListGroupProjectsWithBranchInfo(opts)
-// 	if err != nil {
-// 		return err
-// 	}
-
-// 	log.Zap().Info(res)
-
-// 	return nil
-// }
-
 func (h *Handler) PingAll(c telebot.Context) error {
 	stands, err := h.checkStands(c)
 	if err != nil {
@@ -303,7 +290,12 @@ func (h *Handler) Release(c telebot.Context) error {
 	})
 }
 
-func (h *Handler) AskMeAboutCurrentReleaseState(c telebot.Context) error {
+// в бота прилетает команда /features
+// бот дергает враппер и достает все возможные ветки, кроме дев и стейдж из репозитория
+// фича.нейм == ветка.нейм
+// внутри враппера проверяется, на каком этапе сейчас задача (локально или в деве/ стейдже)
+// бот возвращает текст по шаблону типа feature: abs-337 in local development, feature: abs-338 in dev1, feature: abs-339 in stage, feature: abs-339 in dev3, feature: abs-339 in local development
+func (h *Handler) FeaturesState(c telebot.Context) error {
 	return nil
 }
 
@@ -321,10 +313,10 @@ func (h *Handler) Stub(c telebot.Context) error {
 
 func (h *Handler) CommandHandlers() map[string]telebot.HandlerFunc {
 	return map[string]telebot.HandlerFunc{
-		"/list":     h.ListStands,
-		"/ping":     h.Ping,
-		"/ping_all": h.PingAll,
-		// "/test":     h.Test,
+		"/list":           h.ListStands,
+		"/ping":           h.Ping,
+		"/ping_all":       h.PingAll,
+		"/features_state": h.FeaturesState,
 	}
 }
 
