@@ -62,8 +62,8 @@ const (
 	stateMerged        FeatureState = "in %s"
 )
 
-func (c *GitlabClientWrapper) GetFeatureState(targetBranches []string, exceptions ...string) (map[string]FeatureState, error) {
-	branches, err := c.getBranches(exceptions...)
+func (c *GitlabClientWrapper) GetFeaturesWithState(envBranches []string) (map[string]FeatureState, error) {
+	branches, err := c.getBranches(envBranches...)
 	if err != nil {
 		return nil, err
 	}
@@ -71,9 +71,10 @@ func (c *GitlabClientWrapper) GetFeatureState(targetBranches []string, exception
 	states := make(map[string]FeatureState, len(branches))
 
 	for _, branch := range branches {
-		states[branch.Name] = stateInDevelopment
+		mergedTargets := 0
+		var lastMergedTarget string
 
-		for _, target := range targetBranches {
+		for _, target := range envBranches { // Use the same envBranches as targets
 			merged, err := c.isBranchMergedIntoTarget(branch.Name, target)
 			if err != nil {
 				if errors.Is(err, errMrIsntApproved) || errors.Is(err, errMrIsntMergedInTarget) {
@@ -82,23 +83,18 @@ func (c *GitlabClientWrapper) GetFeatureState(targetBranches []string, exception
 				return nil, err
 			}
 			if merged {
-				states[branch.Name] = FeatureState(fmt.Sprintf(string(stateMerged), target))
-				break
+				mergedTargets++
+				lastMergedTarget = target
 			}
 		}
 
-		allMerged := true
-
-		for _, target := range targetBranches {
-			merged, err := c.isBranchMergedIntoTarget(branch.Name, target)
-			if err != nil || !merged {
-				allMerged = false
-				break
-			}
-		}
-
-		if allMerged {
+		switch {
+		case mergedTargets == 0:
+			states[branch.Name] = stateInDevelopment
+		case mergedTargets == len(envBranches):
 			states[branch.Name] = stateInProduction
+		case mergedTargets > 0:
+			states[branch.Name] = FeatureState(fmt.Sprintf(string(stateMerged), lastMergedTarget))
 		}
 	}
 
@@ -111,13 +107,13 @@ func (c *GitlabClientWrapper) getBranches(exceptions ...string) ([]*gitlab.Branc
 		return nil, fmt.Errorf("failed to get branches due to :%w", err)
 	}
 
-	filteredBranches := make([]*gitlab.Branch, len(branches))
+	filteredBranches := make([]*gitlab.Branch, 0, len(branches))
 
-	for i, branch := range branches {
+	for _, branch := range branches {
 		if slices.Contains(exceptions, branch.Name) {
 			continue
 		}
-		filteredBranches[i] = &gitlab.Branch{
+		filteredBranches = append(filteredBranches, &gitlab.Branch{
 			Name:               branch.Name,
 			Commit:             branch.Commit,
 			Merged:             branch.Merged,
@@ -127,7 +123,7 @@ func (c *GitlabClientWrapper) getBranches(exceptions ...string) ([]*gitlab.Branc
 			DevelopersCanMerge: branch.DevelopersCanMerge,
 			CanPush:            branch.CanPush,
 			WebURL:             branch.WebURL,
-		}
+		})
 	}
 
 	return filteredBranches, nil

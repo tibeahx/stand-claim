@@ -290,13 +290,34 @@ func (h *Handler) Release(c telebot.Context) error {
 	})
 }
 
-// в бота прилетает команда /features
-// бот дергает враппер и достает все возможные ветки, кроме дев и стейдж из репозитория
-// фича.нейм == ветка.нейм
-// внутри враппера проверяется, на каком этапе сейчас задача (локально или в деве/ стейдже)
-// бот возвращает текст по шаблону типа feature: abs-337 in local development, feature: abs-338 in dev1, feature: abs-339 in stage, feature: abs-339 in dev3, feature: abs-339 in local development
 func (h *Handler) FeaturesState(c telebot.Context) error {
-	return nil
+	stands, err := h.checkStands(c)
+	if err != nil {
+		return err
+	}
+
+	enviroments := make([]string, 0, len(stands))
+	for _, stand := range stands {
+		enviroments = append(enviroments, stand.Name)
+	}
+
+	states, err := h.gitlabWrapper.GetFeaturesWithState(enviroments)
+	if err != nil {
+		return c.Reply(fmt.Sprintf("failed to get features state: %v", err))
+	}
+
+	if len(states) == 0 {
+		return c.Reply("no feature branches found")
+	}
+
+	features := make([]string, len(states))
+
+	for branch, state := range states {
+		features = append(features, fmt.Sprintf(TplFeatureState, branch, state))
+	}
+
+	message := strings.Join(features, "\n")
+	return c.Reply(message)
 }
 
 func (h *Handler) Greetings(c telebot.Context) error {

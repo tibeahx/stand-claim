@@ -29,4 +29,5 @@ const (
 	TplUserStand     = "@%s: %s"
 	TplButtonStand   = "%s %s"
 	TplButtonUser    = "@%s (%s)"
+	TplFeatureState  = "feature: %s %s"
 )

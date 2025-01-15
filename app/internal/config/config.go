@@ -58,7 +58,7 @@ var defaultCommands = []telebot.Command{
 	{Text: "/release", Description: "Release currently claimed stand"},
 	{Text: "/list", Description: "Show all stands"},
 	{Text: "/ping", Description: "Ping current stand owner by username"},
-	{Text: "/test", Description: "just for test"},
+	{Text: "/features_state", Description: "Show current state of features"},
 }
 
 // in case we need to set custom commands from config.yaml
