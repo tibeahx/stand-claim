@@ -8,7 +8,7 @@ Telegram bot for managing dev environments within your team.
 - Interactive buttons for claiming/releasing stands
 - Stand usage duration tracking
 - User management through chat members
-
+- Feature state checking
 ## Commands
 
 - `/list` - Show all stands with their status and ownership duration
